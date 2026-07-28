@@ -2,7 +2,7 @@
 <html lang="en" dir="ltr" id="htmlRoot">
 <head>
 <meta charset="UTF-8">
-<style>html,body{background:#060c18!important;color:#eef4ff}</style>
+<style>html,body{background:#070d1a!important;color:#eef4ff}</style>
 <script>
 // Apply saved theme INSTANTLY — dark is always the default
 (function(){
@@ -13,12 +13,12 @@
   localStorage.removeItem('rxp_mode');
   var t = localStorage.getItem('rxp_theme') || 'night';
   if(t === 'light'){
-    document.documentElement.style.background = '#f0f5fb';
-    document.body && (document.body.style.background = '#f0f5fb');
+    document.documentElement.style.background = '#f5f7fa';
+    document.body && (document.body.style.background = '#f5f7fa');
   } else {
     // night or anything else → dark
     localStorage.setItem('rxp_theme','night');
-    document.documentElement.style.background = '#060c18';
+    document.documentElement.style.background = '#070d1a';
   }
 })();
 </script>
@@ -30,7 +30,7 @@
 <style>
 /* ════ TOKENS ════ */
 :root{
---bg:#060c18;--bg2:#0b1525;--bg3:#0f1d35;--bg4:#141f38;
+--bg:#070d1a;--bg2:#0c1730;--bg3:#122043;--bg4:#182a52;
 --glass:rgba(255,255,255,0.035);--glass2:rgba(255,255,255,0.065);--glass3:rgba(255,255,255,0.1);
 --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--border3:rgba(255,255,255,0.2);
 --cyan:#00d4ff;--cyan2:#00a8cc;--cyan3:rgba(0,212,255,0.15);
@@ -46,7 +46,14 @@
 --glow-c:0 0 40px rgba(0,212,255,0.12);--glow-e:0 0 40px rgba(0,200,150,0.12);--glow-a:0 0 40px rgba(255,179,64,0.1);
 --trans:all 0.18s cubic-bezier(0.4,0,0.2,1);--trans-slow:all 0.35s cubic-bezier(0.4,0,0.2,1);--spring:all 0.4s cubic-bezier(0.34,1.56,0.64,1);
 }
-body.light{--bg:#f0f5fb;--bg2:#ffffff;--bg3:#e8eef8;--bg4:#dde5f2;--glass:rgba(255,255,255,0.6);--glass2:rgba(255,255,255,0.85);--glass3:rgba(255,255,255,0.95);--border:rgba(0,0,0,0.07);--border2:rgba(0,0,0,0.12);--border3:rgba(0,0,0,0.18);--white:#0f172a;--text:#334155;--text2:#64748b;--text3:#94a3b8;--shadow:0 4px 20px rgba(0,0,0,0.08);--shadow2:0 12px 40px rgba(0,0,0,0.12)}
+body.light{--bg:#f5f7fa;--bg2:#ffffff;--bg3:#eef1f6;--bg4:#e3e8f0;--glass:rgba(255,255,255,0.6);--glass2:rgba(255,255,255,0.85);--glass3:rgba(255,255,255,0.95);--border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.13);--border3:rgba(0,0,0,0.2);--white:#0f172a;--text:#334155;--text2:#64748b;--text3:#94a3b8;--shadow:0 4px 20px rgba(0,0,0,0.06);--shadow2:0 12px 40px rgba(0,0,0,0.1);
+--cyan:#0284c7;--cyan2:#0369a1;--cyan3:rgba(2,132,199,0.1);
+--emerald:#059669;--emerald2:#047857;--emerald3:rgba(5,150,105,0.1);
+--amber:#d97706;--amber2:rgba(217,119,6,0.12);
+--rose:#e11d48;--rose2:rgba(225,29,72,0.1);
+--purple:#7c3aed;--purple2:#6d28d9;--purple3:rgba(109,40,217,0.1);
+--blue:#2563eb;--teal:#0d9488;--orange:#ea580c;}
+body.light::before{display:none!important}
 body.light .tb-icon-btn,body.light .hbtn,body.light .btn-ghost{color:#0f172a!important}
 body.light .toast{background:rgba(255,255,255,0.97)!important;color:#0f172a!important;border-color:rgba(0,0,0,0.12)!important}
 body.light .modal-box,body.light .modal-overlay .modal-box{background:#ffffff!important;color:#0f172a!important}
@@ -75,7 +82,7 @@ body.light .hero-stat-label,.hero-stat-sub{color:#64748b!important}
 body.light #colTabs{background:rgba(240,245,251,0.98)!important;border-bottom-color:rgba(0,0,0,0.08)!important}
 body.light .col-tab{color:#475569!important}
 body.light .col-tab.active{color:var(--cyan)!important;background:rgba(0,0,0,0.04)!important}
-body.light .hero-ava{background:linear-gradient(135deg,rgba(0,212,255,0.12),rgba(0,200,150,0.12))!important}
+body.light .hero-ava{background:linear-gradient(135deg,rgba(2,132,199,0.1),rgba(5,150,105,0.1))!important}
 body.light .hero-verified{background:var(--emerald)!important;border-color:#e8eef8!important;color:#fff!important}
 body.theme-purple{--cyan:#a78bfa;--cyan2:#7c3aed;--cyan3:rgba(167,139,250,0.15);--emerald:#c084fc;--emerald2:#a855f7}
 body.theme-amber{--cyan:#ffb340;--cyan2:#f59e0b;--cyan3:rgba(255,179,64,0.15);--emerald:#fb923c;--emerald2:#ea580c}
@@ -257,7 +264,7 @@ body[dir="rtl"] .mt-avg-cell{right:auto;left:0}
 .mt-daily-label{padding:7px 12px;font-size:10px;font-weight:600;color:var(--text2);background:rgba(255,255,255,0.02);border-top:1px solid rgba(255,255,255,0.07);position:sticky;left:0;text-align:left}
 body[dir="rtl"] .mt-daily-label{left:auto;right:0;text-align:right}
 .mt-daily-val{border-top:1px solid rgba(255,255,255,0.07);font-size:11px;font-weight:700;font-family:var(--mono);padding:7px 3px;text-align:center}
-.s-low{background:rgba(255,77,109,0.14);color:#ff7a93}.s-med{background:rgba(255,179,64,0.11);color:var(--amber)}.s-good{background:rgba(0,200,150,0.11);color:var(--emerald)}.s-best{background:rgba(0,200,150,0.22);color:#00e5b3}.s-off{background:rgba(255,255,255,0.025);color:var(--text2)}.s-abs{background:rgba(255,77,109,0.07);color:var(--rose)}.s-vac{background:rgba(124,58,237,0.1);color:var(--purple2)}.s-empty{background:transparent;color:var(--text3)}
+.s-low{background:rgba(255,77,109,0.14);color:#ff7a93}.s-med{background:rgba(255,179,64,0.11);color:var(--amber)}.s-good{background:rgba(0,200,150,0.11);color:var(--emerald)}.s-best{background:rgba(30,64,175,0.22);color:#3b82f6}.s-off{background:rgba(255,255,255,0.025);color:var(--text2)}.s-abs{background:rgba(255,77,109,0.07);color:var(--rose)}.s-vac{background:rgba(124,58,237,0.1);color:var(--purple2)}.s-empty{background:transparent;color:var(--text3)}
 .score-legend{display:flex;align-items:center;gap:10px;padding:7px 12px;border-top:1px solid var(--border);font-size:10px;color:var(--text2);flex-wrap:wrap}
 .legend-item{display:flex;align-items:center;gap:4px}.legend-dot{width:7px;height:7px;border-radius:2px}
 /* ════ PANEL CARDS ════ */
@@ -354,13 +361,13 @@ body[dir="rtl"] #toastWrap{right:auto;left:18px}
 
 .toast{padding:9px 14px;border-radius:9px;background:var(--glass3);border:1px solid var(--border2);backdrop-filter:blur(16px);font-size:12px;box-shadow:var(--shadow);color:var(--white);animation:toastIn 0.25s ease;pointer-events:auto;display:flex;align-items:center;gap:8px}
 /* ════ MODAL ════ */
-.modal-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}.modal-overlay.open{display:flex}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;inset:0;z-index:999;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}.modal-overlay.open{display:flex}
 @keyframes modalIn{from{opacity:0;transform:scale(0.95) translateY(10px)}}
-.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);padding:22px 26px;width:min(500px,94vw);max-height:88vh;overflow-y:auto;box-shadow:var(--shadow3);animation:modalIn 0.22s ease}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r3);padding:22px 26px;width:min(500px,94vw);max-width:94vw;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow3);animation:modalIn 0.22s ease;box-sizing:border-box;margin:auto;position:relative}
 .modal-title{font-size:16px;font-weight:800;margin-bottom:18px;display:flex;align-items:center;gap:8px}.form-group{margin-bottom:12px}.form-label{font-size:11px;color:var(--text2);margin-bottom:5px;display:block}
 .form-input{width:100%;padding:10px 12px;background:var(--glass);border:1px solid var(--border2);border-radius:var(--r);color:var(--white);font-size:13px;outline:none;transition:var(--trans);resize:vertical}.form-input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,212,255,0.09)}
 .form-select{width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--white);font-size:13px;outline:none}
-.modal-actions{display:flex;gap:7px;margin-top:18px;justify-content:flex-end}
+.modal-actions{display:flex;gap:7px;margin-top:18px;justify-content:flex-end;flex-wrap:wrap;width:100%}
 .btn{padding:8px 16px;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:var(--trans);border:1px solid}
 .btn-ghost{background:transparent;border-color:var(--border2);color:var(--text)}.btn-ghost:hover{color:var(--white)}
 .btn-primary{background:linear-gradient(135deg,var(--cyan2),var(--cyan));border-color:transparent;color:#060c18}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(0,212,255,0.3)}
@@ -1327,6 +1334,31 @@ const SUPA_URL='https://rfpvhshfsleijiihndfk.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmcHZoc2hmc2xlaWppaWhuZGZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1MzcyMzgsImV4cCI6MjA4ODExMzIzOH0.hUgZTsu8shus0Y13fg_AK-pY7uV3ZjOz-n8tbKZmpAk';
 const SH={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':'application/json','Prefer':'return=minimal'};
 const EP=`${SUPA_URL}/rest/v1/rxperform?id=eq.main&select=data,updated_at`;
+const INVOICE_BUCKET='invoices';
+// ── Upload a base64 data-URL image to Supabase Storage, return a public URL ──
+// If input is already an http(s) URL (previously uploaded), returns it unchanged.
+// On any failure, returns the original data-URL so the image still shows locally.
+async function uploadImageToStorage(dataUrl,pathHint){
+  if(!dataUrl||typeof dataUrl!=='string')return dataUrl;
+  if(!dataUrl.startsWith('data:'))return dataUrl; // already a URL
+  try{
+    const m=dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+    if(!m)return dataUrl;
+    const mime=m[1],b64=m[2];
+    const ext=(mime.split('/')[1]||'jpg').replace('jpeg','jpg');
+    const bin=atob(b64);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    const fname=`${pathHint||'img'}_${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const r=await fetch(`${SUPA_URL}/storage/v1/object/${INVOICE_BUCKET}/${fname}`,{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':mime},
+      body:bytes
+    });
+    if(!r.ok){console.warn('[uploadImageToStorage] failed:',r.status,await r.text().catch(()=>''));return dataUrl;}
+    return `${SUPA_URL}/storage/v1/object/public/${INVOICE_BUCKET}/${fname}`;
+  }catch(e){console.warn('[uploadImageToStorage] error:',e);return dataUrl;}
+}
 const UNDO_MAX=30;
 let role='viewer',curColId=null,curMonth='',openTabs=[],_undoStack=[],_syncT=null,_localT=null,_sq=Promise.resolve();
 let _pendingScore=null,_selScore=null,_pendingBulk=null,_crFilter=new Set(),_noteFilter='all';
@@ -1357,10 +1389,10 @@ const Store={
     // Images are stored locally only; server keeps everything else
     const dbFull=JSON.parse(snap);
     const dbLite=JSON.parse(JSON.stringify(dbFull));
-    // Strip invoice images
+    // Strip invoice images (only raw base64 — uploaded URLs are small & safe to sync)
     if(dbLite.transactions){
       Object.values(dbLite.transactions).forEach(colTx=>{
-        Object.values(colTx).forEach(tx=>{if(tx.imgData)delete tx.imgData;});
+        Object.values(colTx).forEach(tx=>{if(tx.imgData&&typeof tx.imgData==='string'&&tx.imgData.startsWith('data:'))delete tx.imgData;});
       });
     }
     // Strip error images
@@ -1403,8 +1435,9 @@ const Store={
             if(db.transactions) Object.keys(db.transactions).forEach(colId=>{
               localTxImgs[colId]={};
               Object.keys(db.transactions[colId]||{}).forEach(txId=>{
-                if(db.transactions[colId][txId]?.imgData)
-                  localTxImgs[colId][txId]=db.transactions[colId][txId].imgData;
+                const im=db.transactions[colId][txId]?.imgData;
+                if(im&&typeof im==='string'&&im.startsWith('data:'))
+                  localTxImgs[colId][txId]=im;
               });
             });
             const localErrImgs={};
@@ -1452,7 +1485,7 @@ const Store={
                 if(!re){ db.transactions[colId][txId]=le; }
                 else {
                   db.transactions[colId][txId]={...re};
-                  if(le.imgData) db.transactions[colId][txId].imgData=le.imgData;
+                  if(le.imgData&&typeof le.imgData==='string'&&le.imgData.startsWith('data:')) db.transactions[colId][txId].imgData=le.imgData;
                   if(le.createdAt>(re.createdAt||0)) db.transactions[colId][txId]={...le};
                 }
               });
@@ -4840,22 +4873,23 @@ async function compressAllTxImages(){
     });
   });
   if(!total){toast('لا توجد صور لضغطها','#0d9488');return;}
-  toast('⏳ جاري ضغط '+total+' صورة…','#0ea5e9');
+  toast('⏳ جاري ضغط ورفع '+total+' صورة…','#0ea5e9');
+  let uploaded=0;
   for(const job of jobs){
     const tx=db.transactions[job.colId][job.txId];
     const before=tx.imgData.length;
     try{
-      const compressed=await compressImageDataUrl(tx.imgData);
-      if(compressed.length<before){
-        tx.imgData=compressed;
-        saved+=before-compressed.length;
-      }
-    }catch(err){console.warn('compress failed for',job.txId,err);}
+      let compressed=await compressImageDataUrl(tx.imgData);
+      if(compressed.length<before)saved+=before-compressed.length;
+      const url=await uploadImageToStorage(compressed,'invoice');
+      if(url&&url.startsWith('http')){tx.imgData=url;uploaded++;}
+      else tx.imgData=compressed;
+    }catch(err){console.warn('compress/upload failed for',job.txId,err);}
     done++;
   }
   Store.save();
   if(curColId)renderTxFeed();
-  toast('✅ تم ضغط '+done+' صورة وتوفير ~'+Math.round(saved/1024/1024*10)/10+' MB','#059669');
+  toast('✅ تم رفع '+uploaded+' من '+done+' صورة للسيرفر — هتظهر على كل الأجهزة الآن','#059669');
 }
 
 function previewTxImg(input){
@@ -4887,7 +4921,7 @@ function previewTxImg(input){
   reader.readAsDataURL(file);
 }
 
-function saveTxInvoice(){
+async function saveTxInvoice(){
   const invNum=document.getElementById('txInvNum').value.trim();
   if(!invNum){
     toast('⚠ رقم الفاتورة مطلوب — لا يمكن حفظ بيانات الفاتورة بدونه','#ff4d6d');
@@ -4901,6 +4935,14 @@ function saveTxInvoice(){
   const editId=document.getElementById('txEditId').value;
   const txType=document.getElementById('txInvType')?.value||'sale';
 
+  let uploadedImg=_txImgData2||null;
+  if(uploadedImg&&uploadedImg.startsWith('data:')){
+    const label=document.querySelector('label.tx-img-upload');
+    if(label)label.textContent='⏳ جاري رفع الصورة…';
+    uploadedImg=await uploadImageToStorage(uploadedImg,'invoice');
+    if(label)label.innerHTML='<span style="font-size:20px">📷</span> اضغط لرفع صورة الفاتورة';
+  }
+
   const fields={
     invNum,
     value:document.getElementById('txInvValue').value||null,
@@ -4909,7 +4951,7 @@ function saveTxInvoice(){
     custType:document.getElementById('txCustType').value,
     products:[..._txProducts2],
     quickNote:document.getElementById('txQuickNote').value.trim(),
-    imgData:_txImgData2||null,
+    imgData:uploadedImg,
   };
 
   if(editId&&db.transactions[curColId][editId]){
