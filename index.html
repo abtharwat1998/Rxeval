@@ -1338,7 +1338,7 @@ const INVOICE_BUCKET='invoices';
 // ── Upload a base64 data-URL image to Supabase Storage, return a public URL ──
 // If input is already an http(s) URL (previously uploaded), returns it unchanged.
 // On any failure, returns the original data-URL so the image still shows locally.
-async function uploadImageToStorage(dataUrl,pathHint){
+async function uploadImageToStorage(dataUrl,pathHint,silent){
   if(!dataUrl||typeof dataUrl!=='string')return dataUrl;
   if(!dataUrl.startsWith('data:'))return dataUrl; // already a URL
   try{
@@ -1355,9 +1355,21 @@ async function uploadImageToStorage(dataUrl,pathHint){
       headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Content-Type':mime},
       body:bytes
     });
-    if(!r.ok){console.warn('[uploadImageToStorage] failed:',r.status,await r.text().catch(()=>''));return dataUrl;}
+    if(!r.ok){
+      const errText=await r.text().catch(()=>'');
+      console.warn('[uploadImageToStorage] failed:',r.status,errText);
+      if(!silent&&typeof toast==='function')toast('⚠ فشل رفع الصورة: '+r.status+' — '+errText.slice(0,120),'#ff4d6d');
+      const e=new Error('upload_failed_'+r.status+'_'+errText.slice(0,200));
+      e.isUploadError=true;e.status=r.status;
+      throw e;
+    }
     return `${SUPA_URL}/storage/v1/object/public/${INVOICE_BUCKET}/${fname}`;
-  }catch(e){console.warn('[uploadImageToStorage] error:',e);return dataUrl;}
+  }catch(e){
+    if(e.isUploadError)throw e;
+    console.warn('[uploadImageToStorage] error:',e);
+    if(!silent&&typeof toast==='function')toast('⚠ خطأ في الرفع: '+(e.message||e),'#ff4d6d');
+    throw e;
+  }
 }
 const UNDO_MAX=30;
 let role='viewer',curColId=null,curMonth='',openTabs=[],_undoStack=[],_syncT=null,_localT=null,_sq=Promise.resolve();
@@ -4491,7 +4503,7 @@ function buildTxCard(tx){
   const statusCls={pending:'tx-status-pending',reviewed:'tx-status-reviewed',flagged:'tx-status-flagged'}[tx.status||'pending'];
   // فاتورة لسه draft (لم تُحفظ بياناتها الأساسية بعد) → تبقى مفتوحة للتعديل دايمًا
   // أما الفواتير المحفوظة فتُقفل تلقائيًا (تجميد الإجابات والسلايدر) إلا لو دوس "تعديل"
-  const isLocked=tx.draft?false:tx.locked!==false;
+  const isLocked=role!=='admin'?true:(tx.draft?false:tx.locked!==false);
 
   // Products
   const products=(tx.products||[]).map(p=>`<span class="tx-product-tag">${p}</span>`).join('');
@@ -4588,12 +4600,12 @@ function buildTxCard(tx){
         ${(tx.products||[]).length?`<div style="margin-top:10px"><div style="font-size:10px;color:var(--text2);margin-bottom:5px">المنتجات:</div><div class="tx-products">${products}</div></div>`:''}
         ${tx.quickNote?`<div style="margin-top:8px;padding:8px;background:var(--glass);border-radius:var(--r);font-size:11px;color:var(--text2)">${tx.quickNote}</div>`:''}
         <div style="margin-top:10px;display:flex;gap:5px;flex-wrap:wrap">
-          ${tx.draft?`<button class="tx-del-btn m-btn" style="font-size:10px;color:var(--rose)">🗑 حذف</button>`:`
+          ${role==='admin'?(tx.draft?`<button class="tx-del-btn m-btn" style="font-size:10px;color:var(--rose)">🗑 حذف</button>`:`
           <button class="tx-edit-btn m-btn" style="font-size:10px">✏️ تعديل بيانات الفاتورة</button>
           <button class="tx-status-btn m-btn" data-status="reviewed" style="font-size:10px">✅ مُراجَعة</button>
           <button class="tx-status-btn m-btn" data-status="flagged" style="font-size:10px">🚩 مُعلَّمة</button>
           <button class="tx-status-btn m-btn" data-status="pending" style="font-size:10px">🕐 معلّقة</button>
-          <button class="tx-del-btn m-btn" style="font-size:10px;color:var(--rose)">🗑 حذف</button>`}
+          <button class="tx-del-btn m-btn" style="font-size:10px;color:var(--rose)">🗑 حذف</button>`):''}
         </div>
       </div>
 
@@ -4601,7 +4613,7 @@ function buildTxCard(tx){
       <div>
         <div class="tx-col-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <span>📊 تقييم الأداء</span>
-          ${!tx.draft?`<button class="tx-lock-toggle${isLocked?' locked':' unlocked'}">${isLocked?'🔒 مقفول — اضغط للتعديل':'🔓 وضع التعديل — اضغط للقفل'}</button>`:''}
+          ${!tx.draft&&role==='admin'?`<button class="tx-lock-toggle${isLocked?' locked':' unlocked'}">${isLocked?'🔒 مقفول — اضغط للتعديل':'🔓 وضع التعديل — اضغط للقفل'}</button>`:''}
         </div>
         <div class="tx-criteria-bars" style="margin-bottom:14px">${critBars}</div>
 
@@ -4613,10 +4625,10 @@ function buildTxCard(tx){
     <!-- Manager Feedback -->
     <div>
       <div class="tx-col-title" style="margin-bottom:8px">💬 تغذية راجعة من المدير</div>
-      <textarea class="tx-feedback-box" placeholder="اكتب ملاحظاتك وتوجيهاتك للزميل هنا…" style="width:100%;resize:vertical">${tx.feedback||''}</textarea>
+      <textarea class="tx-feedback-box" ${role!=='admin'?'readonly':''} placeholder="اكتب ملاحظاتك وتوجيهاتك للزميل هنا…" style="width:100%;resize:vertical">${tx.feedback||''}</textarea>
     </div>
 
-    ${tx.draft?`<button class="tx-save-draft-btn btn btn-primary" style="width:100%;padding:14px;font-size:14px">💾 حفظ بيانات الفاتورة</button>`:''}
+    ${tx.draft&&role==='admin'?`<button class="tx-save-draft-btn btn btn-primary" style="width:100%;padding:14px;font-size:14px">💾 حفظ بيانات الفاتورة</button>`:''}
   </div>
 </div>`;
 }
@@ -4624,6 +4636,7 @@ function buildTxCard(tx){
 // ── Save helpers ──────────────────────────────────
 // تجميد/فتح قسم تقييم الأداء وأسئلة المراجعة لمنع التعديل بالخطأ أثناء التمرير
 function toggleTxLock(txId,card){
+  if(role!=='admin')return;
   if(!db.transactions[curColId]||!db.transactions[curColId][txId])return;
   const tx=db.transactions[curColId][txId];
   const wasLocked=tx.locked!==false;
@@ -4642,6 +4655,7 @@ function toggleTxLock(txId,card){
 }
 
 function saveTxQA(txId,qid,ans,card){
+  if(role!=='admin')return;
   if(!db.transactions[curColId]||!db.transactions[curColId][txId])return;
   const tx=db.transactions[curColId][txId];
   if(!tx.qa)tx.qa={};
@@ -4667,6 +4681,7 @@ function saveTxQA(txId,qid,ans,card){
 }
 
 function saveTxScore(txId,crid,val){
+  if(role!=='admin')return;
   if(!db.transactions[curColId]||!db.transactions[curColId][txId])return;
   const tx=db.transactions[curColId][txId];
   if(!tx.scores)tx.scores={};
@@ -4694,12 +4709,14 @@ function saveTxScore(txId,crid,val){
 }
 
 function saveTxFeedback(txId,text){
+  if(role!=='admin')return;
   if(!db.transactions[curColId]||!db.transactions[curColId][txId])return;
   db.transactions[curColId][txId].feedback=text;
   Store.save();
 }
 
 function setTxStatus(txId,status){
+  if(role!=='admin'){toast('⚠ غير مصرح — للاطلاع فقط','#ff4d6d');return;}
   if(!db.transactions[curColId]||!db.transactions[curColId][txId])return;
   db.transactions[curColId][txId].status=status;
   Store.save();
@@ -4726,6 +4743,7 @@ function setTxStatus(txId,status){
 }
 
 function deleteTx(txId){
+  if(role!=='admin'){toast('⚠ غير مصرح — للاطلاع فقط','#ff4d6d');return;}
   if(!confirm('هل تريد حذف هذه الفاتورة؟'))return;
   if(db.transactions[curColId])delete db.transactions[curColId][txId];
   Store.save();
@@ -4874,22 +4892,28 @@ async function compressAllTxImages(){
   });
   if(!total){toast('لا توجد صور لضغطها','#0d9488');return;}
   toast('⏳ جاري ضغط ورفع '+total+' صورة…','#0ea5e9');
-  let uploaded=0;
+  let uploaded=0,firstErr=null;
   for(const job of jobs){
     const tx=db.transactions[job.colId][job.txId];
     const before=tx.imgData.length;
     try{
       let compressed=await compressImageDataUrl(tx.imgData);
       if(compressed.length<before)saved+=before-compressed.length;
-      const url=await uploadImageToStorage(compressed,'invoice');
-      if(url&&url.startsWith('http')){tx.imgData=url;uploaded++;}
-      else tx.imgData=compressed;
-    }catch(err){console.warn('compress/upload failed for',job.txId,err);}
+      const url=await uploadImageToStorage(compressed,'invoice',true);
+      tx.imgData=url;uploaded++;
+    }catch(err){
+      console.warn('compress/upload failed for',job.txId,err);
+      if(!firstErr)firstErr=err;
+    }
     done++;
   }
   Store.save();
   if(curColId)renderTxFeed();
-  toast('✅ تم رفع '+uploaded+' من '+done+' صورة للسيرفر — هتظهر على كل الأجهزة الآن','#059669');
+  if(uploaded<done&&firstErr){
+    toast('⚠ اترفع '+uploaded+' من '+done+' — سبب الفشل: '+(firstErr.message||firstErr).toString().slice(0,150),'#ff4d6d');
+  }else{
+    toast('✅ تم رفع '+uploaded+' من '+done+' صورة للسيرفر — هتظهر على كل الأجهزة الآن','#059669');
+  }
 }
 
 function previewTxImg(input){
@@ -4922,6 +4946,7 @@ function previewTxImg(input){
 }
 
 async function saveTxInvoice(){
+  if(role!=='admin'){toast('للمديرين فقط','#ff4d6d');return;}
   const invNum=document.getElementById('txInvNum').value.trim();
   if(!invNum){
     toast('⚠ رقم الفاتورة مطلوب — لا يمكن حفظ بيانات الفاتورة بدونه','#ff4d6d');
@@ -4939,7 +4964,12 @@ async function saveTxInvoice(){
   if(uploadedImg&&uploadedImg.startsWith('data:')){
     const label=document.querySelector('label.tx-img-upload');
     if(label)label.textContent='⏳ جاري رفع الصورة…';
-    uploadedImg=await uploadImageToStorage(uploadedImg,'invoice');
+    try{
+      uploadedImg=await uploadImageToStorage(uploadedImg,'invoice');
+    }catch(e){
+      // فشل الرفع — نحتفظ بالصورة محليًا كـ fallback ونكمل حفظ باقي بيانات الفاتورة
+      uploadedImg=_txImgData2;
+    }
     if(label)label.innerHTML='<span style="font-size:20px">📷</span> اضغط لرفع صورة الفاتورة';
   }
 
