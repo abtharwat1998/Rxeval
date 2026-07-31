@@ -411,6 +411,48 @@ body[dir="rtl"] #notifPanel{right:auto;left:18px}
 .exec-card{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);padding:14px;transition:var(--trans)}.exec-card:hover{border-color:var(--border2)}
 .exec-card.span2{grid-column:span 2}.exec-card.span3{grid-column:span 3}
 .risk-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700}
+/* ════ TASKS MODULE ════ */
+#tasksFullPage{display:none;position:fixed;inset:0;z-index:8000;background:var(--bg);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;flex-direction:column}
+#tasksFullPage.open{display:flex}
+.tk-dash-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:900px){.tk-dash-grid{grid-template-columns:repeat(2,1fr)}}
+.tk-dash-card{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);padding:14px;border-right:3px solid var(--cyan);transition:var(--trans);position:relative;overflow:hidden}
+.tk-dash-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.tk-dash-label{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);font-weight:700;margin-bottom:8px}
+.tk-dash-val{font-size:30px;font-weight:900;font-family:var(--mono);line-height:1}
+.tk-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tk-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;transition:var(--trans);border:1px solid;white-space:nowrap}
+.tk-btn-cyan{background:rgba(0,212,255,0.12);border-color:rgba(0,212,255,0.35);color:var(--cyan)}
+.tk-btn-emerald{background:rgba(0,200,150,0.12);border-color:rgba(0,200,150,0.35);color:var(--emerald)}
+.tk-btn-purple{background:rgba(124,58,237,0.12);border-color:rgba(167,139,250,0.35);color:var(--purple2)}
+.tk-btn-ghost{background:var(--glass);border-color:var(--border);color:var(--text)}
+.tk-btn:hover{transform:translateY(-1px);filter:brightness(1.15)}
+.tk-status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap}
+.tk-priority-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:800;letter-spacing:.3px}
+.tk-progress-track{height:6px;border-radius:99px;background:var(--border);overflow:hidden;width:100%;min-width:60px}
+.tk-progress-fill{height:100%;border-radius:99px;transition:width 0.4s}
+.tk-table-wrap{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto}
+.tk-table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+.tk-table thead tr{background:rgba(255,255,255,0.03)}
+.tk-table th{padding:11px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.4px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tk-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tk-table tbody tr{transition:var(--trans)}
+.tk-table tbody tr:hover{background:rgba(255,255,255,0.025)}
+.tk-icon-action{width:28px;height:28px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;background:var(--glass);border:1px solid var(--border);color:var(--text);font-size:12px;cursor:pointer;transition:var(--trans)}
+.tk-icon-action:hover{background:var(--glass2);color:var(--white)}
+.tk-star-row{display:flex;gap:4px;direction:ltr}
+.tk-star{font-size:22px;cursor:pointer;color:var(--border3);transition:var(--trans);user-select:none}
+.tk-star.filled{color:var(--amber);text-shadow:0 0 12px rgba(255,179,64,0.4)}
+.tk-star:hover{transform:scale(1.15)}
+.tk-star.readonly{cursor:default}
+.tk-eval-card{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);padding:14px;display:flex;flex-direction:column;gap:8px}
+.tk-tab-switch{display:flex;gap:4px;background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:4px}
+.tk-tab-btn{padding:8px 18px;border-radius:7px;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;transition:var(--trans)}
+.tk-tab-btn.active{background:var(--cyan3);color:var(--cyan)}
+.tk-attachment-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--glass);border:1px solid var(--border);font-size:11px;color:var(--text)}
+.tk-detail-box{padding:12px 14px;border-radius:10px;background:var(--glass);border:1px solid var(--border)}
+.tk-detail-label{font-size:9px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:5px}
+.tk-detail-val{font-size:13px;font-weight:700;color:var(--white)}
 .risk-high{background:var(--rose2);color:var(--rose)}.risk-medium{background:var(--amber2);color:var(--amber)}.risk-low{background:var(--emerald3);color:var(--emerald)}
 /* ════ SKELETON ════ */
 @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
@@ -739,6 +781,7 @@ tr.ice-row td{border-top:none!important;border-bottom:none!important}
     <div class="tb-mode-btn" onclick="toggleMode()"><div class="tb-mode-thumb" id="modeThumb">☀️</div></div>
     <button onclick="openTransferPage()" style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.35);color:var(--purple2);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">🔄 تحويلات</button>
     <button onclick="switchInner('errors',null)" style="background:rgba(255,179,64,0.12);border:1px solid rgba(255,179,64,0.35);color:var(--amber);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">⚠️ أخطاء الشهر</button>
+    <button onclick="openTasksFullPage()" style="background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.35);color:var(--cyan);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">✅ المهام</button>
     <button onclick="doExport()" style="background:rgba(0,200,150,0.12);border:1px solid rgba(0,200,150,0.35);color:var(--emerald);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">Export JSON</button>
     <button onclick="doImport()" style="background:rgba(0,212,255,0.12);border:1px solid rgba(0,212,255,0.35);color:var(--cyan);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">Import JSON</button>
     <button onclick="doLogout()" style="background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.35);color:var(--rose);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:11px;font-weight:700;white-space:nowrap">خروج</button>
@@ -1250,6 +1293,7 @@ tr.ice-row td{border-top:none!important;border-bottom:none!important}
   <div class="dp-item" onclick="openNotifications();closeMoreMenu()"><span class="dp-item-icon">🔔</span><span data-i18n="notifications">Notifications</span></div>
   <div class="dp-item" onclick="toggleMode();closeMoreMenu()"><span class="dp-item-icon">🌙</span><span data-i18n="toggle_theme">Toggle Theme</span></div>
   <div class="dp-item" onclick="switchGlobalView('exec');closeMoreMenu()"><span class="dp-item-icon">📊</span><span data-i18n="exec_dashboard">Executive Dashboard</span></div>
+  <div class="dp-item" onclick="openTasksFullPage();closeMoreMenu()"><span class="dp-item-icon">✅</span><span>المهام</span></div>
   <div class="dp-sep"></div>
   <div class="dp-item" onclick="doLogout()" style="color:var(--rose)"><span class="dp-item-icon">🚪</span>تسجيل الخروج</div>
 </div>
@@ -9645,6 +9689,534 @@ ensureErrDb();
 
 })(); // end errors module
 
+/* ═══════════════════════════════════════════════════════════════
+   المهام — TASKS MODULE (fully independent from Task Evaluation)
+═══════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+function ensureTkDb(){
+  if(!db.tasks) db.tasks=[];
+  if(!db.taskEvals) db.taskEvals=[];
+}
+
+const STATUS_MAP={
+  not_started:{label:'لم تبدأ',color:'var(--text2)',bg:'rgba(148,163,184,0.12)',border:'rgba(148,163,184,0.3)',dot:'⚪'},
+  in_progress:{label:'قيد التنفيذ',color:'var(--cyan)',bg:'rgba(0,212,255,0.12)',border:'rgba(0,212,255,0.3)',dot:'🔵'},
+  completed:{label:'مكتملة',color:'var(--emerald)',bg:'rgba(0,200,150,0.12)',border:'rgba(0,200,150,0.3)',dot:'🟢'},
+  delayed:{label:'متأخرة',color:'var(--rose)',bg:'rgba(255,77,109,0.12)',border:'rgba(255,77,109,0.3)',dot:'🔴'}
+};
+const PRIORITY_MAP={
+  high:{label:'عالية',color:'var(--rose)',bg:'rgba(255,77,109,0.12)',icon:'🔴'},
+  medium:{label:'متوسطة',color:'var(--amber)',bg:'rgba(255,179,64,0.12)',icon:'🟡'},
+  low:{label:'منخفضة',color:'var(--emerald)',bg:'rgba(0,200,150,0.12)',icon:'🟢'}
+};
+
+let _tkMode='tasks'; // 'tasks' | 'eval'
+let _tkEmpFilter='';
+let _tkStatusFilter='';
+
+function tkEmpName(id){
+  const c=db.colleagues.find(x=>x.id===id);
+  return c?colName(c):'—';
+}
+function tkEmpColor(id){
+  const c=db.colleagues.find(x=>x.id===id);
+  return c?c.color:'var(--text2)';
+}
+
+window.openTasksFullPage=function(){
+  ensureTkDb();
+  const fp=document.getElementById('tasksFullPage');
+  if(fp){fp.classList.add('open');fp.scrollTop=0;}
+  document.body.classList.add('errors-active');
+  tkSwitchMode(_tkMode);
+};
+window.closeTasksFullPage=function(){
+  const fp=document.getElementById('tasksFullPage');
+  if(fp) fp.classList.remove('open');
+  document.body.classList.remove('errors-active');
+};
+
+window.tkSwitchMode=function(mode){
+  _tkMode=mode;
+  document.getElementById('tkModeTasks').classList.toggle('active',mode==='tasks');
+  document.getElementById('tkModeEval').classList.toggle('active',mode==='eval');
+  if(mode==='tasks') renderTasksTab(); else renderEvalTab();
+};
+
+/* ── AUTO PROGRESS BASED ON STATUS ── */
+window.tkAutoProgress=function(){
+  const st=document.getElementById('tkFStatus').value;
+  const prog=document.getElementById('tkFProgress');
+  if(st==='completed') prog.value=100;
+  else if(st==='not_started') prog.value=0;
+};
+
+/* ══════════════ TASKS TAB ══════════════ */
+function tkStats(list){
+  return {
+    total:list.length,
+    completed:list.filter(x=>x.status==='completed').length,
+    in_progress:list.filter(x=>x.status==='in_progress').length,
+    delayed:list.filter(x=>x.status==='delayed').length,
+    not_started:list.filter(x=>x.status==='not_started').length
+  };
+}
+
+function tkFilteredTasks(){
+  ensureTkDb();
+  let list=[...db.tasks];
+  if(_tkEmpFilter) list=list.filter(x=>x.empId===_tkEmpFilter);
+  if(_tkStatusFilter) list=list.filter(x=>x.status===_tkStatusFilter);
+  return list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+}
+
+window.renderTasksTab=function(){
+  ensureTkDb();
+  const container=document.getElementById('tasksFullPageContent');
+  if(!container) return;
+  const allTasks=db.tasks;
+  const s=tkStats(allTasks);
+  const empOpts=`<option value="">كل الموظفين</option>`+db.colleagues.map(c=>`<option value="${c.id}"${_tkEmpFilter===c.id?' selected':''}>${colName(c)}</option>`).join('');
+  const statusOpts=`<option value="">كل الحالات</option>`+Object.entries(STATUS_MAP).map(([k,v])=>`<option value="${k}"${_tkStatusFilter===k?' selected':''}>${v.dot} ${v.label}</option>`).join('');
+
+  const list=tkFilteredTasks();
+  const rows=list.length?list.map(task=>{
+    const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
+    const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
+    const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const overdue=task.due&&task.status!=='completed'&&new Date(task.due)<new Date(new Date().toDateString());
+    const prog=Math.max(0,Math.min(100,+task.progress||0));
+    const progColor=prog>=100?'var(--emerald)':prog>=50?'var(--cyan)':prog>0?'var(--amber)':'var(--text2)';
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:7px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div><span style="font-weight:600">${tkEmpName(task.empId)}</span></div></td>
+      <td style="max-width:220px"><div style="font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}</div>${task.desc?`<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${task.desc}</div>`:''}</td>
+      <td><span class="tk-priority-pill" style="background:${pr.bg};color:${pr.color}">${pr.icon} ${pr.label}</span></td>
+      <td style="white-space:nowrap;${overdue?'color:var(--rose);font-weight:700':''}">${dueStr}${overdue?' ⚠':''}</td>
+      <td><span class="tk-status-pill" style="background:${st.bg};color:${st.color};border:1px solid ${st.border}">${st.dot} ${st.label}</span></td>
+      <td style="min-width:100px"><div style="display:flex;align-items:center;gap:6px"><div class="tk-progress-track"><div class="tk-progress-fill" style="width:${prog}%;background:${progColor}"></div></div><span style="font-size:10px;font-weight:700;color:${progColor};font-family:var(--mono)">${prog}%</span></div></td>
+      <td><div style="display:flex;gap:5px"><div class="tk-icon-action" title="عرض" onclick="tkViewTask('${task.id}')">👁</div><div class="tk-icon-action" title="تعديل" onclick="tkEditTask('${task.id}')">✏️</div><div class="tk-icon-action" title="حذف" onclick="tkDeleteTask('${task.id}')" style="color:var(--rose)">🗑</div></div></td>
+    </tr>`;
+  }).join(''):'';
+
+  container.innerHTML=`
+    <div class="tk-dash-grid">
+      <div class="tk-dash-card" style="border-color:rgba(0,212,255,0.35)"><div class="tk-dash-label">إجمالي المهام</div><div class="tk-dash-val" style="color:var(--cyan)">${s.total}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(0,200,150,0.35)"><div class="tk-dash-label">مكتملة</div><div class="tk-dash-val" style="color:var(--emerald)">${s.completed}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(0,212,255,0.35)"><div class="tk-dash-label">قيد التنفيذ</div><div class="tk-dash-val" style="color:var(--cyan)">${s.in_progress}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(255,77,109,0.35)"><div class="tk-dash-label">متأخرة</div><div class="tk-dash-val" style="color:var(--rose)">${s.delayed}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(148,163,184,0.35)"><div class="tk-dash-label">لم تبدأ</div><div class="tk-dash-val" style="color:var(--text2)">${s.not_started}</div></div>
+    </div>
+
+    <div class="tk-toolbar">
+      <select class="form-select" id="tkEmpFilterSel" style="width:auto;min-width:160px" onchange="tkApplyFilters()">${empOpts}</select>
+      <select class="form-select" id="tkStatusFilterSel" style="width:auto;min-width:150px" onchange="tkApplyFilters()">${statusOpts}</select>
+      <div style="flex:1"></div>
+      <button class="tk-btn tk-btn-cyan" onclick="tkOpenAddTask()">➕ إضافة مهمة</button>
+      <button class="tk-btn tk-btn-emerald" onclick="tkPrintTasks()">🖨 طباعة المهام</button>
+      <button class="tk-btn tk-btn-purple" onclick="tkPrintEvaluations()">🖨 طباعة التقييمات</button>
+    </div>
+
+    <div class="tk-table-wrap">
+      <table class="tk-table">
+        <thead><tr><th>الموظف</th><th>المهمة</th><th>الأولوية</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th>الإنجاز</th><th style="width:110px">إجراءات</th></tr></thead>
+        <tbody>${rows||`<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text2)">لا توجد مهام مطابقة</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+};
+
+window.tkApplyFilters=function(){
+  _tkEmpFilter=document.getElementById('tkEmpFilterSel').value;
+  _tkStatusFilter=document.getElementById('tkStatusFilterSel').value;
+  renderTasksTab();
+};
+
+/* ── ADD / EDIT TASK ── */
+window.tkOpenAddTask=function(){
+  document.getElementById('tkTaskModalTitle').textContent='➕ إضافة مهمة';
+  document.getElementById('tkEditId').value='';
+  document.getElementById('tkFEmployee').innerHTML=db.colleagues.map(c=>`<option value="${c.id}">${colName(c)}</option>`).join('');
+  document.getElementById('tkFTitle').value='';
+  document.getElementById('tkFDesc').value='';
+  document.getElementById('tkFPriority').value='medium';
+  document.getElementById('tkFDue').value='';
+  document.getElementById('tkFStatus').value='not_started';
+  document.getElementById('tkFProgress').value=0;
+  document.getElementById('tkFNotes').value='';
+  window._tkTempAttachments=[];
+  tkRenderAttachList();
+  openModal('tkTaskModal');
+};
+
+window.tkEditTask=function(id){
+  ensureTkDb();
+  const task=db.tasks.find(x=>x.id===id);
+  if(!task){toast('المهمة غير موجودة','#ff4d6d');return;}
+  document.getElementById('tkTaskModalTitle').textContent='✏️ تعديل المهمة';
+  document.getElementById('tkEditId').value=id;
+  document.getElementById('tkFEmployee').innerHTML=db.colleagues.map(c=>`<option value="${c.id}"${c.id===task.empId?' selected':''}>${colName(c)}</option>`).join('');
+  document.getElementById('tkFTitle').value=task.title||'';
+  document.getElementById('tkFDesc').value=task.desc||'';
+  document.getElementById('tkFPriority').value=task.priority||'medium';
+  document.getElementById('tkFDue').value=task.due||'';
+  document.getElementById('tkFStatus').value=task.status||'not_started';
+  document.getElementById('tkFProgress').value=task.progress||0;
+  document.getElementById('tkFNotes').value=task.notes||'';
+  window._tkTempAttachments=[...(task.attachments||[])];
+  tkRenderAttachList();
+  openModal('tkTaskModal');
+};
+
+window.tkAddAttachment=function(){
+  const inp=document.getElementById('tkFAttachInput');
+  const val=inp.value.trim();
+  if(!val)return;
+  window._tkTempAttachments=window._tkTempAttachments||[];
+  window._tkTempAttachments.push(val);
+  inp.value='';
+  tkRenderAttachList();
+};
+window.tkRemoveAttachment=function(idx){
+  window._tkTempAttachments.splice(idx,1);
+  tkRenderAttachList();
+};
+function tkRenderAttachList(){
+  const wrap=document.getElementById('tkFAttachList');
+  const list=window._tkTempAttachments||[];
+  wrap.innerHTML=list.map((a,i)=>`<span class="tk-attachment-chip">📎 ${a} <span onclick="tkRemoveAttachment(${i})" style="cursor:pointer;color:var(--rose);margin-inline-start:2px">✕</span></span>`).join('');
+}
+
+window.tkSaveTask=function(){
+  ensureTkDb();
+  const empId=document.getElementById('tkFEmployee').value;
+  const title=document.getElementById('tkFTitle').value.trim();
+  if(!empId||!title){toast('يرجى اختيار الموظف وكتابة عنوان المهمة','#ff4d6d');return;}
+  const editId=document.getElementById('tkEditId').value;
+  const data={
+    id:editId||'task'+Date.now(),
+    empId,
+    title,
+    desc:document.getElementById('tkFDesc').value.trim(),
+    priority:document.getElementById('tkFPriority').value,
+    due:document.getElementById('tkFDue').value,
+    status:document.getElementById('tkFStatus').value,
+    progress:Math.max(0,Math.min(100,+document.getElementById('tkFProgress').value||0)),
+    notes:document.getElementById('tkFNotes').value.trim(),
+    attachments:[...(window._tkTempAttachments||[])],
+    createdAt:editId?(db.tasks.find(x=>x.id===editId)?.createdAt||Date.now()):Date.now(),
+    updatedAt:Date.now()
+  };
+  if(editId){
+    const idx=db.tasks.findIndex(x=>x.id===editId);
+    if(idx>-1) db.tasks[idx]=data;
+  } else {
+    db.tasks.push(data);
+  }
+  Store.save();
+  closeModal('tkTaskModal');
+  renderTasksTab();
+  toast('✅ تم حفظ المهمة');
+};
+
+window.tkDeleteTask=function(id){
+  if(!confirm('حذف هذه المهمة نهائياً؟ سيتم أيضاً حذف تقييماتها المرتبطة.'))return;
+  ensureTkDb();
+  db.tasks=db.tasks.filter(x=>x.id!==id);
+  db.taskEvals=db.taskEvals.filter(x=>x.taskId!==id);
+  Store.save();
+  renderTasksTab();
+  toast('🗑 تم حذف المهمة','#ff4d6d');
+};
+
+/* ── VIEW TASK ── */
+window.tkViewTask=function(id){
+  ensureTkDb();
+  const task=db.tasks.find(x=>x.id===id);
+  if(!task){toast('المهمة غير موجودة','#ff4d6d');return;}
+  const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
+  const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
+  const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
+  const prog=Math.max(0,Math.min(100,+task.progress||0));
+  const progColor=prog>=100?'var(--emerald)':prog>=50?'var(--cyan)':prog>0?'var(--amber)':'var(--text2)';
+  const evals=db.taskEvals.filter(x=>x.taskId===id);
+  document.getElementById('tkViewContent').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="tk-detail-box"><div class="tk-detail-label">الموظف</div><div class="tk-detail-val">${tkEmpName(task.empId)}</div></div>
+      <div class="tk-detail-box"><div class="tk-detail-label">الأولوية</div><div class="tk-detail-val" style="color:${pr.color}">${pr.icon} ${pr.label}</div></div>
+      <div class="tk-detail-box"><div class="tk-detail-label">تاريخ الاستحقاق</div><div class="tk-detail-val">${dueStr}</div></div>
+      <div class="tk-detail-box" style="background:${st.bg};border-color:${st.border}"><div class="tk-detail-label" style="color:${st.color}">الحالة</div><div class="tk-detail-val" style="color:${st.color}">${st.dot} ${st.label}</div></div>
+    </div>
+    <div class="tk-detail-box"><div class="tk-detail-label">عنوان المهمة</div><div class="tk-detail-val" style="font-size:15px">${task.title||'—'}</div></div>
+    ${task.desc?`<div class="tk-detail-box"><div class="tk-detail-label">الوصف</div><div style="font-size:13px;color:var(--white);line-height:1.7;white-space:pre-wrap">${task.desc}</div></div>`:''}
+    <div class="tk-detail-box">
+      <div class="tk-detail-label">نسبة الإنجاز</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px"><div class="tk-progress-track" style="height:9px"><div class="tk-progress-fill" style="width:${prog}%;background:${progColor}"></div></div><span style="font-size:13px;font-weight:800;color:${progColor};font-family:var(--mono)">${prog}%</span></div>
+    </div>
+    ${task.notes?`<div class="tk-detail-box"><div class="tk-detail-label">ملاحظات</div><div style="font-size:13px;color:var(--white);line-height:1.7;white-space:pre-wrap">${task.notes}</div></div>`:''}
+    ${(task.attachments||[]).length?`<div class="tk-detail-box"><div class="tk-detail-label">المرفقات (${task.attachments.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${task.attachments.map(a=>`<span class="tk-attachment-chip">📎 ${a}</span>`).join('')}</div></div>`:''}
+    ${evals.length?`<div class="tk-detail-box" style="border-color:rgba(255,179,64,0.3);background:rgba(255,179,64,0.05)"><div class="tk-detail-label" style="color:var(--amber)">⭐ التقييمات المرتبطة (${evals.length})</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${evals.map(e=>{const avg=((e.quality+e.time+e.initiative)/3).toFixed(1);return `<div style="font-size:11px;color:var(--text)">متوسط التقييم: <b style="color:var(--amber)">${avg}/5</b> ${e.comment?'— '+e.comment.slice(0,50):''}</div>`;}).join('')}</div></div>`:''}
+  `;
+  document.getElementById('tkViewModal').dataset.taskId=id;
+  openModal('tkViewModal');
+};
+window.tkEditFromView=function(){
+  const id=document.getElementById('tkViewModal').dataset.taskId;
+  closeModal('tkViewModal');
+  tkEditTask(id);
+};
+window.tkDeleteFromView=function(){
+  const id=document.getElementById('tkViewModal').dataset.taskId;
+  closeModal('tkViewModal');
+  tkDeleteTask(id);
+};
+
+/* ══════════════ TASK EVALUATION TAB (independent system) ══════════════ */
+function tkStarRow(containerId,val,readonly){
+  const el=document.getElementById(containerId);
+  el.dataset.val=val;
+  el.innerHTML='';
+  for(let i=1;i<=5;i++){
+    const s=document.createElement('span');
+    s.className='tk-star'+(i<=val?' filled':'')+(readonly?' readonly':'');
+    s.textContent='★';
+    s.dataset.i=i;
+    if(!readonly){
+      s.onclick=()=>{el.dataset.val=i;tkStarRow(containerId,i,false);};
+    }
+    el.appendChild(s);
+  }
+}
+
+window.renderEvalTab=function(){
+  ensureTkDb();
+  const container=document.getElementById('tasksFullPageContent');
+  if(!container) return;
+  const empOpts=`<option value="">كل الموظفين</option>`+db.colleagues.map(c=>`<option value="${c.id}"${_tkEmpFilter===c.id?' selected':''}>${colName(c)}</option>`).join('');
+  let evals=[...db.taskEvals];
+  if(_tkEmpFilter){
+    const empTaskIds=new Set(db.tasks.filter(t=>t.empId===_tkEmpFilter).map(t=>t.id));
+    evals=evals.filter(e=>empTaskIds.has(e.taskId));
+  }
+  evals.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const totalEvals=db.taskEvals.length;
+  const avgAll=totalEvals?(db.taskEvals.reduce((s,e)=>s+((e.quality+e.time+e.initiative)/3),0)/totalEvals).toFixed(1):'—';
+
+  const cards=evals.length?evals.map(ev=>{
+    const task=db.tasks.find(t=>t.id===ev.taskId);
+    const avg=((ev.quality+ev.time+ev.initiative)/3).toFixed(1);
+    const avgColor=avg>=4?'var(--emerald)':avg>=2.5?'var(--amber)':'var(--rose)';
+    const dateStr=ev.date?new Date(ev.date+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    return `<div class="tk-eval-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <div style="width:30px;height:30px;border-radius:8px;background:${task?tkEmpColor(task.empId)+'22':'var(--glass)'};color:${task?tkEmpColor(task.empId):'var(--text2)'};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${task?ini(tkEmpName(task.empId)):'?'}</div>
+          <div style="min-width:0"><div style="font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task?tkEmpName(task.empId):'موظف محذوف'}</div><div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${task?task.title:'مهمة محذوفة'}</div></div>
+        </div>
+        <div style="text-align:center;flex-shrink:0"><div style="font-size:20px;font-weight:900;font-family:var(--mono);color:${avgColor}">${avg}</div><div style="font-size:8px;color:var(--text2)">من 5</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;font-size:10px;color:var(--text2)">
+        <div style="display:flex;justify-content:space-between"><span>جودة التنفيذ</span><span style="color:var(--amber)">${'★'.repeat(ev.quality)}${'☆'.repeat(5-ev.quality)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>الالتزام بالوقت</span><span style="color:var(--amber)">${'★'.repeat(ev.time)}${'☆'.repeat(5-ev.time)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>المبادرة والتعاون</span><span style="color:var(--amber)">${'★'.repeat(ev.initiative)}${'☆'.repeat(5-ev.initiative)}</span></div>
+      </div>
+      ${ev.comment?`<div style="font-size:11px;color:var(--text);line-height:1.6;background:var(--glass);padding:8px 10px;border-radius:8px;border:1px solid var(--border)">${ev.comment}</div>`:''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
+        <span style="font-size:10px;color:var(--text2)">${dateStr}</span>
+        <div style="display:flex;gap:5px">
+          <div class="tk-icon-action" title="تعديل" onclick="tkEditEval('${ev.id}')">✏️</div>
+          <div class="tk-icon-action" title="حذف" onclick="tkDeleteEval('${ev.id}')" style="color:var(--rose)">🗑</div>
+        </div>
+      </div>
+    </div>`;
+  }).join(''):'';
+
+  container.innerHTML=`
+    <div class="tk-dash-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="tk-dash-card" style="border-color:rgba(255,179,64,0.35)"><div class="tk-dash-label">إجمالي التقييمات</div><div class="tk-dash-val" style="color:var(--amber)">${totalEvals}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(0,200,150,0.35)"><div class="tk-dash-label">متوسط التقييم العام</div><div class="tk-dash-val" style="color:var(--emerald)">${avgAll}${avgAll!=='—'?'/5':''}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(0,212,255,0.35)"><div class="tk-dash-label">مهام قابلة للتقييم</div><div class="tk-dash-val" style="color:var(--cyan)">${db.tasks.length}</div></div>
+    </div>
+    <div class="tk-toolbar">
+      <select class="form-select" id="tkEmpFilterSel" style="width:auto;min-width:160px" onchange="tkApplyFilters()">${empOpts}</select>
+      <div style="flex:1"></div>
+      <button class="tk-btn tk-btn-cyan" onclick="tkOpenAddEval()">⭐ إضافة تقييم</button>
+      <button class="tk-btn tk-btn-purple" onclick="tkPrintEvaluations()">🖨 طباعة التقييمات</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+      ${cards||`<div style="grid-column:1/-1;text-align:center;padding:36px;color:var(--text2)">لا توجد تقييمات بعد</div>`}
+    </div>
+  `;
+};
+
+window.tkOpenAddEval=function(){
+  ensureTkDb();
+  if(!db.tasks.length){toast('يجب إضافة مهمة أولاً قبل تقييمها','#ffb340');return;}
+  document.getElementById('tkEvalModalTitle').textContent='⭐ إضافة تقييم';
+  document.getElementById('tkEvalEditId').value='';
+  // Build a task picker inline via prompt-like select injected into label area
+  const label=document.getElementById('tkEvalTaskLabel');
+  const selectHtml=`<select class="form-select" id="tkEvalTaskSel" style="margin-top:6px">${db.tasks.map(t=>`<option value="${t.id}">${tkEmpName(t.empId)} — ${t.title}</option>`).join('')}</select>`;
+  label.innerHTML=selectHtml;
+  tkStarRow('tkStarsQuality',0,false);
+  tkStarRow('tkStarsTime',0,false);
+  tkStarRow('tkStarsInitiative',0,false);
+  document.getElementById('tkEvalComment').value='';
+  openModal('tkEvalModal');
+};
+
+window.tkEditEval=function(id){
+  ensureTkDb();
+  const ev=db.taskEvals.find(x=>x.id===id);
+  if(!ev){toast('التقييم غير موجود','#ff4d6d');return;}
+  const task=db.tasks.find(t=>t.id===ev.taskId);
+  document.getElementById('tkEvalModalTitle').textContent='✏️ تعديل التقييم';
+  document.getElementById('tkEvalEditId').value=id;
+  document.getElementById('tkEvalTaskLabel').innerHTML=`<div>${task?tkEmpName(task.empId)+' — '+task.title:'مهمة محذوفة'}</div>`;
+  tkStarRow('tkStarsQuality',ev.quality||0,false);
+  tkStarRow('tkStarsTime',ev.time||0,false);
+  tkStarRow('tkStarsInitiative',ev.initiative||0,false);
+  document.getElementById('tkEvalComment').value=ev.comment||'';
+  openModal('tkEvalModal');
+};
+
+window.tkSaveEval=function(){
+  ensureTkDb();
+  const editId=document.getElementById('tkEvalEditId').value;
+  let taskId;
+  if(editId){
+    taskId=db.taskEvals.find(x=>x.id===editId)?.taskId;
+  } else {
+    const sel=document.getElementById('tkEvalTaskSel');
+    taskId=sel?sel.value:null;
+  }
+  if(!taskId){toast('يرجى اختيار مهمة للتقييم','#ff4d6d');return;}
+  const quality=+document.getElementById('tkStarsQuality').dataset.val||0;
+  const time=+document.getElementById('tkStarsTime').dataset.val||0;
+  const initiative=+document.getElementById('tkStarsInitiative').dataset.val||0;
+  if(!quality||!time||!initiative){toast('يرجى تقييم كل المعايير بالنجوم','#ff4d6d');return;}
+  const data={
+    id:editId||'eval'+Date.now(),
+    taskId,quality,time,initiative,
+    comment:document.getElementById('tkEvalComment').value.trim(),
+    date:new Date().toISOString().slice(0,10),
+    createdAt:editId?(db.taskEvals.find(x=>x.id===editId)?.createdAt||Date.now()):Date.now()
+  };
+  if(editId){
+    const idx=db.taskEvals.findIndex(x=>x.id===editId);
+    if(idx>-1) db.taskEvals[idx]=data;
+  } else {
+    db.taskEvals.push(data);
+  }
+  Store.save();
+  closeModal('tkEvalModal');
+  renderEvalTab();
+  toast('✅ تم حفظ التقييم');
+};
+
+window.tkDeleteEval=function(id){
+  if(!confirm('حذف هذا التقييم نهائياً؟'))return;
+  ensureTkDb();
+  db.taskEvals=db.taskEvals.filter(x=>x.id!==id);
+  Store.save();
+  renderEvalTab();
+  toast('🗑 تم حذف التقييم','#ff4d6d');
+};
+
+/* ══════════════ PDF / PRINT — TASKS REPORT ══════════════ */
+window.tkPrintTasks=function(){
+  ensureTkDb();
+  const list=tkFilteredTasks();
+  const s=tkStats(list.length?list:db.tasks);
+  const adminName=db.settings?.adminDisplayName||'المسؤول';
+  const now=new Date();
+  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'});
+  const rows=(list.length?list:db.tasks).map((task,i)=>{
+    const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
+    const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
+    const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short'}):'—';
+    const stColorMap={not_started:'#64748b',in_progress:'#0369a1',completed:'#15803d',delayed:'#b91c1c'};
+    const stBgMap={not_started:'#f1f5f9',in_progress:'#e0f2fe',completed:'#dcfce7',delayed:'#fee2e2'};
+    const prColorMap={high:'#b91c1c',medium:'#b45309',low:'#15803d'};
+    return `<tr>
+      <td style="text-align:center;color:#94a3b8;font-size:10px">${i+1}</td>
+      <td style="font-weight:700">${tkEmpName(task.empId)}</td>
+      <td style="text-align:right;direction:rtl">${task.title||'—'}</td>
+      <td style="text-align:center;color:${prColorMap[task.priority]||'#64748b'};font-weight:700">${pr.label}</td>
+      <td style="white-space:nowrap;color:#475569">${dueStr}</td>
+      <td style="text-align:center"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${stBgMap[task.status]||'#f1f5f9'};color:${stColorMap[task.status]||'#64748b'}">${st.label}</span></td>
+      <td style="text-align:center;font-weight:700;color:#0f172a">${task.progress||0}%</td>
+    </tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo','Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:28px}@media print{@page{size:A4 landscape;margin:10mm}body{padding:0;background:#f1f5f9}}.header{background:#0f172a;border-radius:12px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.header h1{font-size:18px;color:#fff;margin:0}.header .sub{font-size:10.5px;color:#94a3b8;margin-top:4px}.header .date{font-size:11px;color:#64748b;background:#1e293b;padding:6px 12px;border-radius:8px}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}.card{padding:14px 16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;border-right:4px solid;box-shadow:0 1px 4px rgba(0,0,0,.06)}.card-label{font-size:9px;color:#64748b;margin-bottom:6px;font-weight:700;letter-spacing:.4px}.card-val{font-size:26px;font-weight:900}.table-wrap{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse;font-size:11.5px}thead tr{background:#0f172a}th{padding:11px 13px;color:#94a3b8;font-weight:700;text-align:right;font-size:10px;letter-spacing:.3px}tbody tr{border-bottom:1px solid #f1f5f9}tbody tr:nth-child(even){background:#f8fafc}td{padding:10px 13px;color:#0f172a;vertical-align:top;font-weight:500}.footer{margin-top:16px;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 4px}</style></head><body>
+  <div class="header"><div><h1>✅ تقرير المهام</h1><div class="sub">${_tkEmpFilter?'الموظف: '+tkEmpName(_tkEmpFilter)+' · ':''}أعده: ${adminName}</div></div><div class="date">${exportDate}</div></div>
+  <div class="cards">
+    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">الإجمالي</div><div class="card-val" style="color:#0369a1">${s.total}</div></div>
+    <div class="card" style="border-right-color:#16a34a"><div class="card-label">مكتملة</div><div class="card-val" style="color:#15803d">${s.completed}</div></div>
+    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">قيد التنفيذ</div><div class="card-val" style="color:#0369a1">${s.in_progress}</div></div>
+    <div class="card" style="border-right-color:#dc2626"><div class="card-label">متأخرة</div><div class="card-val" style="color:#b91c1c">${s.delayed}</div></div>
+    <div class="card" style="border-right-color:#64748b"><div class="card-label">لم تبدأ</div><div class="card-val" style="color:#475569">${s.not_started}</div></div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th style="text-align:center;width:36px">#</th><th>الموظف</th><th>المهمة</th><th style="text-align:center">الأولوية</th><th>الاستحقاق</th><th style="text-align:center">الحالة</th><th style="text-align:center">الإنجاز</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8">لا توجد مهام</td></tr>'}</tbody></table></div>
+  <div class="footer"><span>تم إنشاؤه بواسطة RxPerform Pro</span><span>${exportDate}</span></div>
+  </body></html>`;
+  let f=document.getElementById('rxp-tk-print-frame');
+  if(!f){f=document.createElement('iframe');f.id='rxp-tk-print-frame';f.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;z-index:-9999';document.body.appendChild(f);}
+  f.srcdoc=html;f.onload=()=>setTimeout(()=>f.contentWindow.print(),500);
+  toast('🖨 جاري تحضير تقرير المهام…','#00d4ff');
+};
+
+/* ══════════════ PDF / PRINT — EVALUATIONS REPORT (independent) ══════════════ */
+window.tkPrintEvaluations=function(){
+  ensureTkDb();
+  let evals=[...db.taskEvals];
+  if(_tkEmpFilter){
+    const empTaskIds=new Set(db.tasks.filter(t=>t.empId===_tkEmpFilter).map(t=>t.id));
+    evals=evals.filter(e=>empTaskIds.has(e.taskId));
+  }
+  evals.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const adminName=db.settings?.adminDisplayName||'المسؤول';
+  const now=new Date();
+  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'});
+  const avgAll=evals.length?(evals.reduce((s,e)=>s+((e.quality+e.time+e.initiative)/3),0)/evals.length).toFixed(1):'—';
+  const starStr=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+  const rows=evals.map((ev,i)=>{
+    const task=db.tasks.find(t=>t.id===ev.taskId);
+    const avg=((ev.quality+ev.time+ev.initiative)/3).toFixed(1);
+    const dateStr=ev.date?new Date(ev.date+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short'}):'—';
+    return `<tr>
+      <td style="text-align:center;color:#94a3b8;font-size:10px">${i+1}</td>
+      <td style="font-weight:700">${task?tkEmpName(task.empId):'—'}</td>
+      <td style="text-align:right;direction:rtl">${task?task.title:'مهمة محذوفة'}</td>
+      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.quality)}</td>
+      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.time)}</td>
+      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.initiative)}</td>
+      <td style="text-align:center;font-weight:900;color:#0f172a">${avg}</td>
+      <td style="white-space:nowrap;color:#475569">${dateStr}</td>
+      <td style="text-align:right;direction:rtl;color:#334155;font-size:10.5px">${ev.comment||'—'}</td>
+    </tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo','Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:28px}@media print{@page{size:A4 landscape;margin:10mm}body{padding:0;background:#f1f5f9}}.header{background:#0f172a;border-radius:12px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.header h1{font-size:18px;color:#fff;margin:0}.header .sub{font-size:10.5px;color:#94a3b8;margin-top:4px}.header .date{font-size:11px;color:#64748b;background:#1e293b;padding:6px 12px;border-radius:8px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.card{padding:14px 16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;border-right:4px solid;box-shadow:0 1px 4px rgba(0,0,0,.06)}.card-label{font-size:9px;color:#64748b;margin-bottom:6px;font-weight:700;letter-spacing:.4px}.card-val{font-size:26px;font-weight:900}.table-wrap{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#0f172a}th{padding:11px 13px;color:#94a3b8;font-weight:700;text-align:right;font-size:10px;letter-spacing:.3px}tbody tr{border-bottom:1px solid #f1f5f9}tbody tr:nth-child(even){background:#f8fafc}td{padding:10px 13px;color:#0f172a;vertical-align:top;font-weight:500}.footer{margin-top:16px;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 4px}</style></head><body>
+  <div class="header"><div><h1>⭐ تقرير تقييم المهام</h1><div class="sub">${_tkEmpFilter?'الموظف: '+tkEmpName(_tkEmpFilter)+' · ':''}أعده: ${adminName}</div></div><div class="date">${exportDate}</div></div>
+  <div class="cards">
+    <div class="card" style="border-right-color:#d97706"><div class="card-label">إجمالي التقييمات</div><div class="card-val" style="color:#b45309">${evals.length}</div></div>
+    <div class="card" style="border-right-color:#16a34a"><div class="card-label">متوسط التقييم العام</div><div class="card-val" style="color:#15803d">${avgAll}${avgAll!=='—'?'/5':''}</div></div>
+    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">تاريخ التقرير</div><div class="card-val" style="font-size:16px;color:#0369a1">${exportDate}</div></div>
+  </div>
+  <div class="table-wrap"><table><thead><tr><th style="text-align:center;width:30px">#</th><th>الموظف</th><th>المهمة</th><th style="text-align:center">الجودة</th><th style="text-align:center">الالتزام بالوقت</th><th style="text-align:center">المبادرة</th><th style="text-align:center">المتوسط</th><th>التاريخ</th><th>التعليق</th></tr></thead><tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8">لا توجد تقييمات</td></tr>'}</tbody></table></div>
+  <div class="footer"><span>تم إنشاؤه بواسطة RxPerform Pro — نظام تقييم مستقل عن المهام</span><span>${exportDate}</span></div>
+  </body></html>`;
+  let f=document.getElementById('rxp-tkeval-print-frame');
+  if(!f){f=document.createElement('iframe');f.id='rxp-tkeval-print-frame';f.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;z-index:-9999';document.body.appendChild(f);}
+  f.srcdoc=html;f.onload=()=>setTimeout(()=>f.contentWindow.print(),500);
+  toast('🖨 جاري تحضير تقرير التقييمات…','#7c3aed');
+};
+
+ensureTkDb();
+
+})(); // end tasks module
+
 </script>
 
 
@@ -10398,6 +10970,134 @@ ensureErrDb();
     <div class="modal-actions" style="margin-top:12px;flex-shrink:0">
       <button class="btn btn-ghost" onclick="closeModal('unexecutedModal')">إغلاق</button>
       <button class="btn btn-primary" onclick="exportUnexecutedPDF()" style="background:rgba(255,77,109,0.15);border-color:rgba(255,77,109,0.4);color:var(--rose)">🖨 طباعة منفصلة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ TASKS MODULE ═══════════════ -->
+<div id="tasksFullPage">
+  <div style="position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap">
+    <button onclick="closeTasksFullPage()" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:var(--glass);border:1px solid var(--border);color:var(--text);font-size:12px;font-weight:700;cursor:pointer">← رجوع</button>
+    <div style="font-size:14px;font-weight:800;color:var(--white)">✅ المهام</div>
+    <div class="tk-tab-switch" style="margin-inline-start:auto">
+      <div class="tk-tab-btn" id="tkModeTasks" onclick="tkSwitchMode('tasks')">📋 المهام</div>
+      <div class="tk-tab-btn" id="tkModeEval" onclick="tkSwitchMode('eval')">⭐ تقييم المهام</div>
+    </div>
+  </div>
+  <div id="tasksFullPageContent" style="padding:14px;display:flex;flex-direction:column;gap:14px;flex:1"></div>
+</div>
+
+<!-- Add/Edit Task Modal -->
+<div class="modal-overlay" id="tkTaskModal" style="z-index:10001" onclick="if(event.target===this)closeModal('tkTaskModal')">
+  <div class="modal-box" style="max-width:600px;max-height:92vh;overflow-y:auto">
+    <div class="modal-title" id="tkTaskModalTitle">➕ إضافة مهمة</div>
+    <input type="hidden" id="tkEditId" value="">
+    <div class="form-group">
+      <label class="form-label">الموظف *</label>
+      <select class="form-select" id="tkFEmployee"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">عنوان المهمة *</label>
+      <input class="form-input" type="text" id="tkFTitle" placeholder="اكتب عنوان المهمة...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">وصف المهمة</label>
+      <textarea class="form-input" id="tkFDesc" rows="3" placeholder="تفاصيل إضافية عن المهمة..."></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">الأولوية</label>
+        <select class="form-select" id="tkFPriority">
+          <option value="high">🔴 عالية</option>
+          <option value="medium" selected>🟡 متوسطة</option>
+          <option value="low">🟢 منخفضة</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">تاريخ الاستحقاق</label>
+        <input class="form-input" type="date" id="tkFDue">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">الحالة</label>
+        <select class="form-select" id="tkFStatus" onchange="tkAutoProgress()">
+          <option value="not_started">⚪ لم تبدأ</option>
+          <option value="in_progress">🔵 قيد التنفيذ</option>
+          <option value="completed">🟢 مكتملة</option>
+          <option value="delayed">🔴 متأخرة</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">نسبة الإنجاز (%)</label>
+        <input class="form-input" type="number" id="tkFProgress" min="0" max="100" value="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">ملاحظات</label>
+      <textarea class="form-input" id="tkFNotes" rows="2" placeholder="ملاحظات على المهمة..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">مرفقات (روابط أو أسماء ملفات)</label>
+      <div style="display:flex;gap:6px">
+        <input class="form-input" type="text" id="tkFAttachInput" placeholder="اسم المرفق أو رابطه" style="flex:1">
+        <button type="button" class="tk-btn tk-btn-cyan" onclick="tkAddAttachment()">إضافة</button>
+      </div>
+      <div id="tkFAttachList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tkTaskModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="tkSaveTask()">💾 حفظ المهمة</button>
+    </div>
+  </div>
+</div>
+
+<!-- View Task Modal -->
+<div class="modal-overlay" id="tkViewModal" style="z-index:10002" onclick="if(event.target===this)closeModal('tkViewModal')">
+  <div class="modal-box" style="max-width:640px;max-height:92vh;overflow-y:auto;padding:0">
+    <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:800">📄 تفاصيل المهمة</div>
+      <button onclick="closeModal('tkViewModal')" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div id="tkViewContent" style="padding:18px 22px;display:flex;flex-direction:column;gap:12px"></div>
+    <div style="padding:14px 22px 20px;display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border)">
+      <button onclick="tkDeleteFromView()" style="padding:8px 16px;border-radius:8px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);color:var(--rose);font-size:12px;font-weight:700;cursor:pointer">🗑 حذف</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="tkEditFromView()" style="padding:8px 16px;border-radius:8px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer">✏️ تعديل</button>
+        <button onclick="closeModal('tkViewModal')" class="btn btn-ghost" style="font-size:12px;padding:8px 16px">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Evaluation Modal -->
+<div class="modal-overlay" id="tkEvalModal" style="z-index:10001" onclick="if(event.target===this)closeModal('tkEvalModal')">
+  <div class="modal-box" style="max-width:560px;max-height:92vh;overflow-y:auto">
+    <div class="modal-title" id="tkEvalModalTitle">⭐ تقييم المهمة</div>
+    <input type="hidden" id="tkEvalEditId" value="">
+    <div class="tk-detail-box" style="margin-bottom:14px">
+      <div class="tk-detail-label">المهمة</div>
+      <div class="tk-detail-val" id="tkEvalTaskLabel">—</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">جودة التنفيذ</label>
+      <div class="tk-star-row" id="tkStarsQuality" data-val="0"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">الالتزام بالوقت</label>
+      <div class="tk-star-row" id="tkStarsTime" data-val="0"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">المبادرة والتعاون</label>
+      <div class="tk-star-row" id="tkStarsInitiative" data-val="0"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">تعليق التقييم</label>
+      <textarea class="form-input" id="tkEvalComment" rows="3" placeholder="اكتب ملاحظاتك على أداء الموظف في هذه المهمة..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tkEvalModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="tkSaveEval()">💾 حفظ التقييم</button>
     </div>
   </div>
 </div>
