@@ -9691,6 +9691,12 @@ ensureErrDb();
 
 /* ═══════════════════════════════════════════════════════════════
    المهام — TASKS MODULE (fully independent from Task Evaluation)
+   Data model:
+   - db.tasks[]: persistent task assignments (one row per employee, even for group tasks)
+       { id, groupId, empId, title, desc, priority, recurrence('once'|'daily'|'weekly'|'monthly'),
+         due, status, progress, notes, attachments[], cycleKey, history[], transferLog[],
+         createdAt, updatedAt }
+   - db.taskEvals[]: fully independent evaluation records linked by taskId
 ═══════════════════════════════════════════════════════════════ */
 (function(){
 'use strict';
@@ -9711,22 +9717,118 @@ const PRIORITY_MAP={
   medium:{label:'متوسطة',color:'var(--amber)',bg:'rgba(255,179,64,0.12)',icon:'🟡'},
   low:{label:'منخفضة',color:'var(--emerald)',bg:'rgba(0,200,150,0.12)',icon:'🟢'}
 };
+const RECUR_MAP={
+  once:{label:'مرة واحدة',icon:'📌'},
+  daily:{label:'يومي',icon:'🔁'},
+  weekly:{label:'أسبوعي',icon:'🔁'},
+  monthly:{label:'شهري',icon:'🔁'}
+};
 
 let _tkMode='tasks'; // 'tasks' | 'eval'
 let _tkEmpFilter='';
 let _tkStatusFilter='';
 
 function tkEmpName(id){
+  if(id&&id.startsWith('custom:')) return id.slice(7);
   const c=db.colleagues.find(x=>x.id===id);
   return c?colName(c):'—';
 }
+/* Always returns the Arabic name (used in print reports, regardless of the app's current UI language) */
+function tkEmpNameAr(id){
+  if(id&&id.startsWith('custom:')) return id.slice(7);
+  const c=db.colleagues.find(x=>x.id===id);
+  return c?(c.nameAr||c.name||'—'):'—';
+}
 function tkEmpColor(id){
+  if(id&&id.startsWith('custom:')) return '#94a3b8';
   const c=db.colleagues.find(x=>x.id===id);
   return c?c.color:'var(--text2)';
+}
+function tkIsCustomEmp(id){
+  return !!(id&&id.startsWith('custom:'));
+}
+
+/* ── Renders the employee picker list (checkboxes for multi-add, radios for single-edit),
+     with a trailing "آخر / اسم مخصص" option that reveals a free-text name field ── */
+function tkRenderEmpPicker(mode,selectedEmpId){
+  const inputType=mode==='multi'?'checkbox':'radio';
+  const inputName=mode==='multi'?'':' name="tkEmpSingle"';
+  const isCustomSelected=tkIsCustomEmp(selectedEmpId);
+  const colleagueRows=db.colleagues.map(c=>`
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+      <input type="${inputType}" class="tk-emp-check"${inputName} value="${c.id}"${c.id===selectedEmpId?' checked':''} style="width:15px;height:15px;accent-color:var(--cyan)">
+      <span style="width:22px;height:22px;border-radius:6px;background:${c.color}22;color:${c.color};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${ini(colName(c))}</span>
+      ${colName(c)}
+    </label>`).join('');
+  const customRow=`
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;border-top:1px solid var(--border);padding-top:6px;margin-top:2px">
+      <input type="${inputType}" class="tk-emp-check tk-emp-custom-toggle"${inputName} value="__custom__"${isCustomSelected?' checked':''} onchange="tkToggleCustomEmpInput(this)" style="width:15px;height:15px;accent-color:var(--purple2)">
+      <span style="width:22px;height:22px;border-radius:6px;background:rgba(167,139,250,0.15);color:var(--purple2);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0">✎</span>
+      آخر / اسم مخصص
+    </label>
+    <input type="text" id="tkFCustomEmpName" placeholder="اكتب الاسم هنا..." value="${isCustomSelected?tkEmpName(selectedEmpId):''}" class="form-input" style="margin-top:6px;display:${isCustomSelected?'block':'none'}">`;
+  return colleagueRows+customRow;
+}
+
+window.tkToggleCustomEmpInput=function(el){
+  const wrap=el.closest('#tkFEmployeeList');
+  const input=document.getElementById('tkFCustomEmpName');
+  if(!wrap||!input)return;
+  if(el.type==='radio'){
+    // single-select: any radio choice toggles visibility of the custom field
+    input.style.display=el.classList.contains('tk-emp-custom-toggle')&&el.checked?'block':'none';
+  } else {
+    // multi-select checkboxes: custom field shows if the custom checkbox is checked
+    const customBox=wrap.querySelector('.tk-emp-custom-toggle');
+    input.style.display=customBox&&customBox.checked?'block':'none';
+  }
+};
+
+/* ── CYCLE KEY: identifies "which period" a recurring task's current status belongs to ── */
+function tkCurrentCycleKey(recurrence){
+  const now=new Date();
+  if(recurrence==='daily') return now.toISOString().slice(0,10); // YYYY-MM-DD
+  if(recurrence==='weekly'){
+    const onejan=new Date(now.getFullYear(),0,1);
+    const week=Math.ceil((((now-onejan)/86400000)+onejan.getDay()+1)/7);
+    return `${now.getFullYear()}-W${week}`;
+  }
+  if(recurrence==='monthly') return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  return 'once'; // one-off tasks never roll
+}
+
+/* ── Roll a task into a new cycle if needed: archive old status into history, reset to "not_started" ── */
+function tkRollCycleIfNeeded(task){
+  if(!task.recurrence||task.recurrence==='once') return task;
+  const curKey=tkCurrentCycleKey(task.recurrence);
+  if(task.cycleKey!==curKey){
+    if(!task.history) task.history=[];
+    // Only archive if the task actually had some prior activity (avoid archiving blank initial state)
+    if(task.cycleKey){
+      task.history.unshift({
+        cycleKey:task.cycleKey,
+        status:task.status,
+        progress:task.progress,
+        notes:task.notes,
+        closedAt:Date.now()
+      });
+      if(task.history.length>60) task.history.length=60; // cap history growth
+    }
+    task.cycleKey=curKey;
+    task.status='not_started';
+    task.progress=0;
+  }
+  return task;
+}
+
+function tkRollAllCycles(){
+  ensureTkDb();
+  db.tasks.forEach(tkRollCycleIfNeeded);
 }
 
 window.openTasksFullPage=function(){
   ensureTkDb();
+  tkRollAllCycles();
   const fp=document.getElementById('tasksFullPage');
   if(fp){fp.classList.add('open');fp.scrollTop=0;}
   document.body.classList.add('errors-active');
@@ -9745,14 +9847,6 @@ window.tkSwitchMode=function(mode){
   if(mode==='tasks') renderTasksTab(); else renderEvalTab();
 };
 
-/* ── AUTO PROGRESS BASED ON STATUS ── */
-window.tkAutoProgress=function(){
-  const st=document.getElementById('tkFStatus').value;
-  const prog=document.getElementById('tkFProgress');
-  if(st==='completed') prog.value=100;
-  else if(st==='not_started') prog.value=0;
-};
-
 /* ══════════════ TASKS TAB ══════════════ */
 function tkStats(list){
   return {
@@ -9768,45 +9862,41 @@ function tkFilteredTasks(){
   ensureTkDb();
   let list=[...db.tasks];
   if(_tkEmpFilter) list=list.filter(x=>x.empId===_tkEmpFilter);
-  if(_tkStatusFilter) list=list.filter(x=>x.status===_tkStatusFilter);
-  return list.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(_tkStatusFilter==='completed') list=list.filter(x=>x.status==='completed');
+  else if(_tkStatusFilter==='not_started') list=list.filter(x=>x.status!=='completed');
+  return list.sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
 }
 
 window.renderTasksTab=function(){
   ensureTkDb();
+  tkRollAllCycles();
   const container=document.getElementById('tasksFullPageContent');
   if(!container) return;
   const allTasks=db.tasks;
   const s=tkStats(allTasks);
   const empOpts=`<option value="">كل الموظفين</option>`+db.colleagues.map(c=>`<option value="${c.id}"${_tkEmpFilter===c.id?' selected':''}>${colName(c)}</option>`).join('');
-  const statusOpts=`<option value="">كل الحالات</option>`+Object.entries(STATUS_MAP).map(([k,v])=>`<option value="${k}"${_tkStatusFilter===k?' selected':''}>${v.dot} ${v.label}</option>`).join('');
+  const statusOpts=`<option value="">كل المهام</option><option value="completed"${_tkStatusFilter==='completed'?' selected':''}>✅ تمت</option><option value="not_started"${_tkStatusFilter==='not_started'?' selected':''}>⬜ لم تتم</option>`;
 
   const list=tkFilteredTasks();
   const rows=list.length?list.map(task=>{
-    const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
     const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
-    const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'}):'—';
-    const overdue=task.due&&task.status!=='completed'&&new Date(task.due)<new Date(new Date().toDateString());
-    const prog=Math.max(0,Math.min(100,+task.progress||0));
-    const progColor=prog>=100?'var(--emerald)':prog>=50?'var(--cyan)':prog>0?'var(--amber)':'var(--text2)';
+    const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+    const done=task.status==='completed';
+    const lastTransfer=(task.transferLog||[])[0];
     return `<tr>
-      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:7px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div><span style="font-weight:600">${tkEmpName(task.empId)}</span></div></td>
-      <td style="max-width:220px"><div style="font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}</div>${task.desc?`<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px">${task.desc}</div>`:''}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:7px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div><div><div style="font-weight:600">${tkEmpName(task.empId)}</div>${lastTransfer?`<div style="font-size:9px;color:var(--purple2)">بدلاً عن ${lastTransfer.fromName}</div>`:''}</div></div></td>
+      <td style="max-width:260px"><div style="font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}${task.recurrence&&task.recurrence!=='once'?` <span style="font-size:9px;color:var(--cyan);font-weight:700">${rc.icon} ${rc.label}</span>`:''}</div>${task.desc?`<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${task.desc}</div>`:''}</td>
       <td><span class="tk-priority-pill" style="background:${pr.bg};color:${pr.color}">${pr.icon} ${pr.label}</span></td>
-      <td style="white-space:nowrap;${overdue?'color:var(--rose);font-weight:700':''}">${dueStr}${overdue?' ⚠':''}</td>
-      <td><span class="tk-status-pill" style="background:${st.bg};color:${st.color};border:1px solid ${st.border}">${st.dot} ${st.label}</span></td>
-      <td style="min-width:100px"><div style="display:flex;align-items:center;gap:6px"><div class="tk-progress-track"><div class="tk-progress-fill" style="width:${prog}%;background:${progColor}"></div></div><span style="font-size:10px;font-weight:700;color:${progColor};font-family:var(--mono)">${prog}%</span></div></td>
+      <td style="text-align:center"><input type="checkbox" onchange="tkToggleDone('${task.id}',this.checked)" ${done?'checked':''} style="width:19px;height:19px;accent-color:var(--emerald);cursor:pointer" title="تمت المهمة؟"></td>
       <td><div style="display:flex;gap:5px"><div class="tk-icon-action" title="عرض" onclick="tkViewTask('${task.id}')">👁</div><div class="tk-icon-action" title="تعديل" onclick="tkEditTask('${task.id}')">✏️</div><div class="tk-icon-action" title="حذف" onclick="tkDeleteTask('${task.id}')" style="color:var(--rose)">🗑</div></div></td>
     </tr>`;
   }).join(''):'';
 
   container.innerHTML=`
-    <div class="tk-dash-grid">
+    <div class="tk-dash-grid" style="grid-template-columns:repeat(3,1fr)">
       <div class="tk-dash-card" style="border-color:rgba(0,212,255,0.35)"><div class="tk-dash-label">إجمالي المهام</div><div class="tk-dash-val" style="color:var(--cyan)">${s.total}</div></div>
-      <div class="tk-dash-card" style="border-color:rgba(0,200,150,0.35)"><div class="tk-dash-label">مكتملة</div><div class="tk-dash-val" style="color:var(--emerald)">${s.completed}</div></div>
-      <div class="tk-dash-card" style="border-color:rgba(0,212,255,0.35)"><div class="tk-dash-label">قيد التنفيذ</div><div class="tk-dash-val" style="color:var(--cyan)">${s.in_progress}</div></div>
-      <div class="tk-dash-card" style="border-color:rgba(255,77,109,0.35)"><div class="tk-dash-label">متأخرة</div><div class="tk-dash-val" style="color:var(--rose)">${s.delayed}</div></div>
-      <div class="tk-dash-card" style="border-color:rgba(148,163,184,0.35)"><div class="tk-dash-label">لم تبدأ</div><div class="tk-dash-val" style="color:var(--text2)">${s.not_started}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(0,200,150,0.35)"><div class="tk-dash-label">تمت</div><div class="tk-dash-val" style="color:var(--emerald)">${s.completed}</div></div>
+      <div class="tk-dash-card" style="border-color:rgba(148,163,184,0.35)"><div class="tk-dash-label">لم تتم</div><div class="tk-dash-val" style="color:var(--text2)">${s.total-s.completed}</div></div>
     </div>
 
     <div class="tk-toolbar">
@@ -9820,30 +9910,41 @@ window.renderTasksTab=function(){
 
     <div class="tk-table-wrap">
       <table class="tk-table">
-        <thead><tr><th>الموظف</th><th>المهمة</th><th>الأولوية</th><th>تاريخ الاستحقاق</th><th>الحالة</th><th>الإنجاز</th><th style="width:110px">إجراءات</th></tr></thead>
-        <tbody>${rows||`<tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text2)">لا توجد مهام مطابقة</td></tr>`}</tbody>
+        <thead><tr><th>الموظف</th><th>المهمة</th><th>الأولوية</th><th style="text-align:center;width:70px">تمت؟</th><th style="width:110px">إجراءات</th></tr></thead>
+        <tbody>${rows||`<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text2)">لا توجد مهام مطابقة</td></tr>`}</tbody>
       </table>
     </div>
   `;
 };
 
+window.tkToggleDone=function(id,isDone){
+  ensureTkDb();
+  const task=db.tasks.find(x=>x.id===id);
+  if(!task)return;
+  task.status=isDone?'completed':'not_started';
+  task.progress=isDone?100:0;
+  task.updatedAt=Date.now();
+  Store.save();
+  renderTasksTab();
+};
+
 window.tkApplyFilters=function(){
   _tkEmpFilter=document.getElementById('tkEmpFilterSel').value;
   _tkStatusFilter=document.getElementById('tkStatusFilterSel').value;
-  renderTasksTab();
+  if(_tkMode==='tasks') renderTasksTab(); else renderEvalTab();
 };
 
 /* ── ADD / EDIT TASK ── */
 window.tkOpenAddTask=function(){
   document.getElementById('tkTaskModalTitle').textContent='➕ إضافة مهمة';
   document.getElementById('tkEditId').value='';
-  document.getElementById('tkFEmployee').innerHTML=db.colleagues.map(c=>`<option value="${c.id}">${colName(c)}</option>`).join('');
+  document.getElementById('tkEditGroupId').value='';
+  document.getElementById('tkFEmployeeWrap').style.display='block';
+  document.getElementById('tkFEmployeeList').innerHTML=tkRenderEmpPicker('multi',null);
   document.getElementById('tkFTitle').value='';
   document.getElementById('tkFDesc').value='';
   document.getElementById('tkFPriority').value='medium';
-  document.getElementById('tkFDue').value='';
-  document.getElementById('tkFStatus').value='not_started';
-  document.getElementById('tkFProgress').value=0;
+  document.getElementById('tkFRecurrence').value='once';
   document.getElementById('tkFNotes').value='';
   window._tkTempAttachments=[];
   tkRenderAttachList();
@@ -9856,13 +9957,14 @@ window.tkEditTask=function(id){
   if(!task){toast('المهمة غير موجودة','#ff4d6d');return;}
   document.getElementById('tkTaskModalTitle').textContent='✏️ تعديل المهمة';
   document.getElementById('tkEditId').value=id;
-  document.getElementById('tkFEmployee').innerHTML=db.colleagues.map(c=>`<option value="${c.id}"${c.id===task.empId?' selected':''}>${colName(c)}</option>`).join('');
+  document.getElementById('tkEditGroupId').value=task.groupId||'';
+  // Editing an existing task targets a single employee — hide multi-select, show single readonly-ish info
+  document.getElementById('tkFEmployeeWrap').style.display='block';
+  document.getElementById('tkFEmployeeList').innerHTML=tkRenderEmpPicker('single',task.empId);
   document.getElementById('tkFTitle').value=task.title||'';
   document.getElementById('tkFDesc').value=task.desc||'';
   document.getElementById('tkFPriority').value=task.priority||'medium';
-  document.getElementById('tkFDue').value=task.due||'';
-  document.getElementById('tkFStatus').value=task.status||'not_started';
-  document.getElementById('tkFProgress').value=task.progress||0;
+  document.getElementById('tkFRecurrence').value=task.recurrence||'once';
   document.getElementById('tkFNotes').value=task.notes||'';
   window._tkTempAttachments=[...(task.attachments||[])];
   tkRenderAttachList();
@@ -9890,34 +9992,63 @@ function tkRenderAttachList(){
 
 window.tkSaveTask=function(){
   ensureTkDb();
-  const empId=document.getElementById('tkFEmployee').value;
-  const title=document.getElementById('tkFTitle').value.trim();
-  if(!empId||!title){toast('يرجى اختيار الموظف وكتابة عنوان المهمة','#ff4d6d');return;}
   const editId=document.getElementById('tkEditId').value;
-  const data={
-    id:editId||'task'+Date.now(),
-    empId,
-    title,
-    desc:document.getElementById('tkFDesc').value.trim(),
-    priority:document.getElementById('tkFPriority').value,
-    due:document.getElementById('tkFDue').value,
-    status:document.getElementById('tkFStatus').value,
-    progress:Math.max(0,Math.min(100,+document.getElementById('tkFProgress').value||0)),
-    notes:document.getElementById('tkFNotes').value.trim(),
-    attachments:[...(window._tkTempAttachments||[])],
-    createdAt:editId?(db.tasks.find(x=>x.id===editId)?.createdAt||Date.now()):Date.now(),
-    updatedAt:Date.now()
-  };
+  const title=document.getElementById('tkFTitle').value.trim();
+  if(!title){toast('يرجى كتابة عنوان المهمة','#ff4d6d');return;}
+
+  let checked=[...document.querySelectorAll('#tkFEmployeeList .tk-emp-check:checked')].map(el=>el.value);
+  if(!checked.length){toast('يرجى اختيار موظف واحد على الأقل','#ff4d6d');return;}
+
+  if(checked.includes('__custom__')){
+    const customName=(document.getElementById('tkFCustomEmpName')?.value||'').trim();
+    if(!customName){toast('يرجى كتابة الاسم المخصص','#ff4d6d');return;}
+    checked=checked.map(v=>v==='__custom__'?('custom:'+customName):v);
+  }
+
+  const recurrence=document.getElementById('tkFRecurrence').value;
+  const priority=document.getElementById('tkFPriority').value;
+  const notes=document.getElementById('tkFNotes').value.trim();
+  const desc=document.getElementById('tkFDesc').value.trim();
+  const attachments=[...(window._tkTempAttachments||[])];
+
   if(editId){
+    // Editing: single task, single employee (re-assignment here is a plain field edit, not a "transfer")
     const idx=db.tasks.findIndex(x=>x.id===editId);
-    if(idx>-1) db.tasks[idx]=data;
+    if(idx===-1){toast('المهمة غير موجودة','#ff4d6d');return;}
+    const empId=checked[0];
+    const existing=db.tasks[idx];
+    existing.empId=empId;
+    existing.title=title;
+    existing.desc=desc;
+    existing.priority=priority;
+    existing.recurrence=recurrence;
+    existing.notes=notes;
+    existing.attachments=attachments;
+    existing.updatedAt=Date.now();
+    if(!existing.cycleKey) existing.cycleKey=tkCurrentCycleKey(recurrence);
   } else {
-    db.tasks.push(data);
+    // Adding: fan out into one independent row per selected employee (group task = shared definition, separate rows)
+    const groupId=checked.length>1?('grp'+Date.now()):null;
+    checked.forEach((empId,i)=>{
+      db.tasks.push({
+        id:'task'+Date.now()+'_'+i,
+        groupId,
+        empId,
+        title,desc,priority,recurrence,
+        due:'',status:'not_started',progress:0,notes,
+        attachments:[...attachments],
+        cycleKey:tkCurrentCycleKey(recurrence),
+        history:[],
+        transferLog:[],
+        createdAt:Date.now(),
+        updatedAt:Date.now()
+      });
+    });
   }
   Store.save();
   closeModal('tkTaskModal');
   renderTasksTab();
-  toast('✅ تم حفظ المهمة');
+  toast(editId?'✅ تم تحديث المهمة':(checked.length>1?`✅ تم إنشاء المهمة لـ ${checked.length} موظفين`:'✅ تم حفظ المهمة'));
 };
 
 window.tkDeleteTask=function(id){
@@ -9935,27 +10066,29 @@ window.tkViewTask=function(id){
   ensureTkDb();
   const task=db.tasks.find(x=>x.id===id);
   if(!task){toast('المهمة غير موجودة','#ff4d6d');return;}
-  const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
   const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
-  const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'—';
-  const prog=Math.max(0,Math.min(100,+task.progress||0));
-  const progColor=prog>=100?'var(--emerald)':prog>=50?'var(--cyan)':prog>0?'var(--amber)':'var(--text2)';
+  const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+  const done=task.status==='completed';
   const evals=db.taskEvals.filter(x=>x.taskId===id);
+  const history=task.history||[];
+  const transferLog=task.transferLog||[];
+  const lastTransfer=transferLog[0];
   document.getElementById('tkViewContent').innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="tk-detail-box"><div class="tk-detail-label">الموظف</div><div class="tk-detail-val">${tkEmpName(task.empId)}</div></div>
+      <div class="tk-detail-box"><div class="tk-detail-label">الموظف الحالي</div><div class="tk-detail-val">${tkEmpName(task.empId)}</div>${lastTransfer?`<div style="font-size:10px;color:var(--purple2);margin-top:3px">بدلاً عن ${lastTransfer.fromName}</div>`:''}</div>
+      <div class="tk-detail-box"><div class="tk-detail-label">التكرار</div><div class="tk-detail-val" style="color:var(--cyan)">${rc.icon} ${rc.label}</div></div>
       <div class="tk-detail-box"><div class="tk-detail-label">الأولوية</div><div class="tk-detail-val" style="color:${pr.color}">${pr.icon} ${pr.label}</div></div>
-      <div class="tk-detail-box"><div class="tk-detail-label">تاريخ الاستحقاق</div><div class="tk-detail-val">${dueStr}</div></div>
-      <div class="tk-detail-box" style="background:${st.bg};border-color:${st.border}"><div class="tk-detail-label" style="color:${st.color}">الحالة</div><div class="tk-detail-val" style="color:${st.color}">${st.dot} ${st.label}</div></div>
+      <div class="tk-detail-box" style="background:${done?'rgba(0,200,150,0.12)':'rgba(148,163,184,0.12)'};border-color:${done?'rgba(0,200,150,0.3)':'rgba(148,163,184,0.3)'};display:flex;align-items:center;gap:10px">
+        <input type="checkbox" onchange="tkToggleDone('${task.id}',this.checked);tkViewTask('${task.id}')" ${done?'checked':''} style="width:20px;height:20px;accent-color:var(--emerald);cursor:pointer">
+        <div><div class="tk-detail-label" style="color:${done?'var(--emerald)':'var(--text2)'}">تمت المهمة؟</div><div class="tk-detail-val" style="color:${done?'var(--emerald)':'var(--text2)'}">${done?'✅ تمت':'⬜ لم تتم بعد'}</div></div>
+      </div>
     </div>
     <div class="tk-detail-box"><div class="tk-detail-label">عنوان المهمة</div><div class="tk-detail-val" style="font-size:15px">${task.title||'—'}</div></div>
     ${task.desc?`<div class="tk-detail-box"><div class="tk-detail-label">الوصف</div><div style="font-size:13px;color:var(--white);line-height:1.7;white-space:pre-wrap">${task.desc}</div></div>`:''}
-    <div class="tk-detail-box">
-      <div class="tk-detail-label">نسبة الإنجاز</div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px"><div class="tk-progress-track" style="height:9px"><div class="tk-progress-fill" style="width:${prog}%;background:${progColor}"></div></div><span style="font-size:13px;font-weight:800;color:${progColor};font-family:var(--mono)">${prog}%</span></div>
-    </div>
     ${task.notes?`<div class="tk-detail-box"><div class="tk-detail-label">ملاحظات</div><div style="font-size:13px;color:var(--white);line-height:1.7;white-space:pre-wrap">${task.notes}</div></div>`:''}
     ${(task.attachments||[]).length?`<div class="tk-detail-box"><div class="tk-detail-label">المرفقات (${task.attachments.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${task.attachments.map(a=>`<span class="tk-attachment-chip">📎 ${a}</span>`).join('')}</div></div>`:''}
+    ${history.length?`<div class="tk-detail-box" style="border-color:rgba(0,212,255,0.25)"><div class="tk-detail-label" style="color:var(--cyan)">📜 سجل الدورات السابقة (${history.length})</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;max-height:140px;overflow-y:auto">${history.map(h=>{const hst=STATUS_MAP[h.status]||STATUS_MAP.not_started;return `<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:6px 8px;border-radius:7px;background:var(--glass)"><span style="color:var(--text2)">${h.cycleKey}</span><span class="tk-status-pill" style="background:${hst.bg};color:${hst.color};font-size:9px">${hst.dot} ${hst.label}</span></div>`;}).join('')}</div></div>`:''}
+    ${transferLog.length?`<div class="tk-detail-box" style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.05)"><div class="tk-detail-label" style="color:var(--purple2)">🔄 سجل النقل بين الموظفين</div><div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${transferLog.map(tl=>`<div style="font-size:11px;color:var(--text)">من <b>${tl.fromName}</b> إلى <b>${tl.toName}</b> — ${new Date(tl.at).toLocaleDateString('ar-EG')}</div>`).join('')}</div></div>`:''}
     ${evals.length?`<div class="tk-detail-box" style="border-color:rgba(255,179,64,0.3);background:rgba(255,179,64,0.05)"><div class="tk-detail-label" style="color:var(--amber)">⭐ التقييمات المرتبطة (${evals.length})</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${evals.map(e=>{const avg=((e.quality+e.time+e.initiative)/3).toFixed(1);return `<div style="font-size:11px;color:var(--text)">متوسط التقييم: <b style="color:var(--amber)">${avg}/5</b> ${e.comment?'— '+e.comment.slice(0,50):''}</div>`;}).join('')}</div></div>`:''}
   `;
   document.getElementById('tkViewModal').dataset.taskId=id;
@@ -9970,6 +10103,35 @@ window.tkDeleteFromView=function(){
   const id=document.getElementById('tkViewModal').dataset.taskId;
   closeModal('tkViewModal');
   tkDeleteTask(id);
+};
+
+/* ── TRANSFER TO BACKUP: full ownership handoff ── */
+window.tkOpenTransferModal=function(){
+  const taskId=document.getElementById('tkViewModal').dataset.taskId;
+  const task=db.tasks.find(x=>x.id===taskId);
+  if(!task){toast('المهمة غير موجودة','#ff4d6d');return;}
+  document.getElementById('tkTransferTaskId').value=taskId;
+  document.getElementById('tkTransferCurrentEmp').textContent=tkEmpName(task.empId);
+  document.getElementById('tkTransferToSel').innerHTML=db.colleagues.filter(c=>c.id!==task.empId).map(c=>`<option value="${c.id}">${colName(c)}</option>`).join('');
+  closeModal('tkViewModal');
+  openModal('tkTransferModal');
+};
+
+window.tkConfirmTransfer=function(){
+  const taskId=document.getElementById('tkTransferTaskId').value;
+  const toId=document.getElementById('tkTransferToSel').value;
+  const task=db.tasks.find(x=>x.id===taskId);
+  if(!task||!toId){toast('خطأ في بيانات النقل','#ff4d6d');return;}
+  const fromName=tkEmpName(task.empId);
+  const toName=tkEmpName(toId);
+  if(!task.transferLog) task.transferLog=[];
+  task.transferLog.unshift({fromId:task.empId,fromName,toId,toName,at:Date.now()});
+  task.empId=toId;
+  task.updatedAt=Date.now();
+  Store.save();
+  closeModal('tkTransferModal');
+  renderTasksTab();
+  toast(`🔄 تم نقل المهمة من ${fromName} إلى ${toName}`,'#a78bfa');
 };
 
 /* ══════════════ TASK EVALUATION TAB (independent system) ══════════════ */
@@ -10055,7 +10217,6 @@ window.tkOpenAddEval=function(){
   if(!db.tasks.length){toast('يجب إضافة مهمة أولاً قبل تقييمها','#ffb340');return;}
   document.getElementById('tkEvalModalTitle').textContent='⭐ إضافة تقييم';
   document.getElementById('tkEvalEditId').value='';
-  // Build a task picker inline via prompt-like select injected into label area
   const label=document.getElementById('tkEvalTaskLabel');
   const selectHtml=`<select class="form-select" id="tkEvalTaskSel" style="margin-top:6px">${db.tasks.map(t=>`<option value="${t.id}">${tkEmpName(t.empId)} — ${t.title}</option>`).join('')}</select>`;
   label.innerHTML=selectHtml;
@@ -10125,42 +10286,161 @@ window.tkDeleteEval=function(id){
 };
 
 /* ══════════════ PDF / PRINT — TASKS REPORT ══════════════ */
+/* ── Step 1: open the task-selection screen before printing ── */
 window.tkPrintTasks=function(){
   ensureTkDb();
   const list=tkFilteredTasks();
-  const s=tkStats(list.length?list:db.tasks);
-  const adminName=db.settings?.adminDisplayName||'المسؤول';
-  const now=new Date();
-  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'});
-  const rows=(list.length?list:db.tasks).map((task,i)=>{
-    const st=STATUS_MAP[task.status]||STATUS_MAP.not_started;
-    const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
-    const dueStr=task.due?new Date(task.due+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short'}):'—';
-    const stColorMap={not_started:'#64748b',in_progress:'#0369a1',completed:'#15803d',delayed:'#b91c1c'};
-    const stBgMap={not_started:'#f1f5f9',in_progress:'#e0f2fe',completed:'#dcfce7',delayed:'#fee2e2'};
-    const prColorMap={high:'#b91c1c',medium:'#b45309',low:'#15803d'};
-    return `<tr>
-      <td style="text-align:center;color:#94a3b8;font-size:10px">${i+1}</td>
-      <td style="font-weight:700">${tkEmpName(task.empId)}</td>
-      <td style="text-align:right;direction:rtl">${task.title||'—'}</td>
-      <td style="text-align:center;color:${prColorMap[task.priority]||'#64748b'};font-weight:700">${pr.label}</td>
-      <td style="white-space:nowrap;color:#475569">${dueStr}</td>
-      <td style="text-align:center"><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${stBgMap[task.status]||'#f1f5f9'};color:${stColorMap[task.status]||'#64748b'}">${st.label}</span></td>
-      <td style="text-align:center;font-weight:700;color:#0f172a">${task.progress||0}%</td>
-    </tr>`;
+  const source=(list.length?list:db.tasks);
+  if(!source.length){toast('لا توجد مهام لطباعتها','#ffb340');return;}
+  const rows=source.map(task=>{
+    const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+    const lastTransfer=(task.transferLog||[])[0];
+    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;background:var(--glass);border:1px solid var(--border);cursor:pointer">
+      <input type="checkbox" class="tk-print-select" value="${task.id}" checked style="width:17px;height:17px;accent-color:var(--emerald);flex-shrink:0">
+      <div style="width:24px;height:24px;border-radius:6px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div>
+      <div style="min-width:0;flex:1">
+        <div style="font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}</div>
+        <div style="font-size:10px;color:var(--text2)">${tkEmpName(task.empId)}${lastTransfer?' (بدلاً عن '+lastTransfer.fromName+')':''} · ${rc.label}</div>
+      </div>
+    </label>`;
   }).join('');
-  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo','Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:28px}@media print{@page{size:A4 landscape;margin:10mm}body{padding:0;background:#f1f5f9}}.header{background:#0f172a;border-radius:12px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.header h1{font-size:18px;color:#fff;margin:0}.header .sub{font-size:10.5px;color:#94a3b8;margin-top:4px}.header .date{font-size:11px;color:#64748b;background:#1e293b;padding:6px 12px;border-radius:8px}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}.card{padding:14px 16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;border-right:4px solid;box-shadow:0 1px 4px rgba(0,0,0,.06)}.card-label{font-size:9px;color:#64748b;margin-bottom:6px;font-weight:700;letter-spacing:.4px}.card-val{font-size:26px;font-weight:900}.table-wrap{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse;font-size:11.5px}thead tr{background:#0f172a}th{padding:11px 13px;color:#94a3b8;font-weight:700;text-align:right;font-size:10px;letter-spacing:.3px}tbody tr{border-bottom:1px solid #f1f5f9}tbody tr:nth-child(even){background:#f8fafc}td{padding:10px 13px;color:#0f172a;vertical-align:top;font-weight:500}.footer{margin-top:16px;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 4px}</style></head><body>
-  <div class="header"><div><h1>✅ تقرير المهام</h1><div class="sub">${_tkEmpFilter?'الموظف: '+tkEmpName(_tkEmpFilter)+' · ':''}أعده: ${adminName}</div></div><div class="date">${exportDate}</div></div>
-  <div class="cards">
-    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">الإجمالي</div><div class="card-val" style="color:#0369a1">${s.total}</div></div>
-    <div class="card" style="border-right-color:#16a34a"><div class="card-label">مكتملة</div><div class="card-val" style="color:#15803d">${s.completed}</div></div>
-    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">قيد التنفيذ</div><div class="card-val" style="color:#0369a1">${s.in_progress}</div></div>
-    <div class="card" style="border-right-color:#dc2626"><div class="card-label">متأخرة</div><div class="card-val" style="color:#b91c1c">${s.delayed}</div></div>
-    <div class="card" style="border-right-color:#64748b"><div class="card-label">لم تبدأ</div><div class="card-val" style="color:#475569">${s.not_started}</div></div>
+  document.getElementById('tkPrintSelectList').innerHTML=rows;
+  openModal('tkPrintSelectModal');
+};
+
+window.tkPrintSelectAll=function(state){
+  document.querySelectorAll('#tkPrintSelectList .tk-print-select').forEach(el=>el.checked=state);
+};
+
+window.tkConfirmPrintSelection=function(){
+  const ids=[...document.querySelectorAll('#tkPrintSelectList .tk-print-select:checked')].map(el=>el.value);
+  if(!ids.length){toast('يرجى اختيار مهمة واحدة على الأقل للطباعة','#ff4d6d');return;}
+  closeModal('tkPrintSelectModal');
+  tkGenerateTasksPrint(ids);
+};
+
+/* ── Step 2: generate the actual print report from the chosen task ids ── */
+window.tkGenerateTasksPrint=function(taskIds){
+  ensureTkDb();
+  const source=db.tasks.filter(t=>taskIds.includes(t.id));
+  const now=new Date();
+  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'long',year:'numeric'});
+  const weekday=now.toLocaleDateString('ar-EG',{weekday:'long'});
+  const refNo='TSK-'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  const prLabelMap={high:'عالية',medium:'متوسطة',low:'منخفضة'};
+
+  // Group tasks by employee (Arabic name forced regardless of app UI language)
+  const groups=new Map();
+  source.forEach(t=>{
+    const key=t.empId;
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(t);
+  });
+
+  let counter=0;
+  const sections=[...groups.entries()].map(([empId,tasks])=>{
+    const lastTransfer=(tasks[0].transferLog||[])[0];
+    const rows=tasks.map(task=>{
+      counter++;
+      const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+      return `<tr>
+        <td class="idx">${counter}</td>
+        <td class="ttl">
+          <div class="ttl-main">${task.title||'—'}</div>
+          ${task.desc?`<div class="ttl-sub">${task.desc}</div>`:''}
+        </td>
+        <td class="center">${prLabelMap[task.priority]||'متوسطة'}</td>
+        <td class="center">${task.recurrence&&task.recurrence!=='once'?rc.label:'مرة واحدة'}</td>
+      </tr>`;
+    }).join('');
+    return `<table class="emp-table">
+      <thead>
+        <tr class="emp-row">
+          <th colspan="4">
+            <div class="emp-line">
+              <span class="emp-name">${tkEmpNameAr(empId)}</span>
+              ${lastTransfer?`<span class="emp-transfer">(بدلاً عن ${lastTransfer.fromName})</span>`:''}
+              <span class="emp-count">${tasks.length} ${tasks.length===1?'مهمة':'مهام'}</span>
+            </div>
+          </th>
+        </tr>
+        <tr class="col-row">
+          <th class="idx">م</th>
+          <th>المهمة</th>
+          <th class="center">الأولوية</th>
+          <th class="center">التكرار</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Cairo','Traditional Arabic','Segoe UI',serif;background:#f7f5f0;color:#1c1c1c;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:30px}
+@media print{@page{size:A4 portrait;margin:14mm 12mm}body{padding:0;background:#fff}.emp-table{page-break-inside:avoid}}
+.sheet{max-width:820px;margin:0 auto;background:#fff}
+.letterhead{border-bottom:2px double #1c1c1c;padding-bottom:9px;margin-bottom:14px}
+.lh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.org{display:flex;align-items:center;gap:8px}
+.org-mark{width:28px;height:28px;border:1.5px solid #1c1c1c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#1c1c1c;flex-shrink:0}
+.org-name{font-size:12.5px;font-weight:800;color:#1c1c1c;letter-spacing:.3px}
+.org-sub{font-size:8.5px;color:#6b6b6b;margin-top:1px}
+.ref-box{text-align:left;font-size:8.5px;color:#6b6b6b;line-height:1.7}
+.ref-box b{color:#1c1c1c;font-weight:700}
+.doc-title{text-align:center;margin-top:10px}
+.doc-title h1{font-size:15px;font-weight:900;color:#1c1c1c;display:inline-block;position:relative;padding:0 6px}
+.doc-sub{text-align:center;font-size:9.5px;color:#6b6b6b;margin-top:3px}
+.meta-strip{display:flex;justify-content:center;gap:26px;margin-top:8px;padding-top:7px;border-top:1px solid #d8d4c9;flex-wrap:wrap}
+.meta-item{text-align:center}
+.meta-item .k{font-size:8px;color:#8a8a8a;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.meta-item .v{font-size:10.5px;font-weight:700;color:#1c1c1c}
+.emp-table{width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #d8d4c9}
+.emp-row th{background:#1c1c1c;padding:9px 14px}
+.emp-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.emp-name{font-size:12.5px;font-weight:800;color:#fff}
+.emp-transfer{font-size:9.5px;color:#c9c4b5;font-style:italic}
+.emp-count{margin-inline-start:auto;font-size:9.5px;color:#c9c4b5;font-weight:600}
+.col-row th{background:#efece3;color:#5a5647;font-weight:700;font-size:9px;padding:7px 14px;border-bottom:1px solid #d8d4c9;text-align:right}
+.col-row th.idx,.col-row th.center{text-align:center}
+.idx{width:32px;text-align:center}
+.center{text-align:center}
+tbody tr{border-bottom:1px solid #ece9df}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:9px 14px;font-size:11px;vertical-align:top;color:#1c1c1c}
+.ttl-main{font-weight:700}
+.ttl-sub{font-size:9.5px;color:#8a8a8a;margin-top:2px}
+.sign-area{display:flex;justify-content:space-between;margin-top:34px;padding-top:16px}
+.sign-block{width:44%;text-align:center}
+.sign-line{border-top:1px solid #1c1c1c;padding-top:6px;margin-top:36px;font-size:10px;color:#5a5647;font-weight:700}
+.empty{text-align:center;padding:60px;color:#9a968a;font-size:12px;border:1px dashed #d8d4c9}
+</style></head><body><div class="sheet">
+  <div class="letterhead">
+    <div class="lh-top">
+      <div class="org">
+        <div class="org-mark">✓</div>
+        <div><div class="org-name">إدارة متابعة المهام</div><div class="org-sub">تقرير رسمي دوري</div></div>
+      </div>
+      <div class="ref-box">
+        <div>رقم المرجع: <b>${refNo}</b></div>
+        <div>التاريخ: <b>${weekday}، ${exportDate}</b></div>
+      </div>
+    </div>
+    <div class="doc-title"><h1>تقرير متابعة المهام</h1></div>
+    <div class="doc-sub">${_tkEmpFilter?'خاص بالموظف: '+tkEmpNameAr(_tkEmpFilter):'تقرير شامل لجميع الموظفين المعنيين'}</div>
+    <div class="meta-strip">
+      <div class="meta-item"><div class="k">عدد المهام</div><div class="v">${source.length}</div></div>
+      <div class="meta-item"><div class="k">عدد الموظفين</div><div class="v">${groups.size}</div></div>
+    </div>
   </div>
-  <div class="table-wrap"><table><thead><tr><th style="text-align:center;width:36px">#</th><th>الموظف</th><th>المهمة</th><th style="text-align:center">الأولوية</th><th>الاستحقاق</th><th style="text-align:center">الحالة</th><th style="text-align:center">الإنجاز</th></tr></thead><tbody>${rows||'<tr><td colspan="7" style="text-align:center;padding:30px;color:#94a3b8">لا توجد مهام</td></tr>'}</tbody></table></div>
-  <div class="footer"><span>تم إنشاؤه بواسطة RxPerform Pro</span><span>${exportDate}</span></div>
-  </body></html>`;
+
+  ${sections||'<div class="empty">لا توجد مهام مدرجة في هذا التقرير</div>'}
+
+  <div class="sign-area">
+    <div class="sign-block"><div class="sign-line">توقيع المسؤول</div></div>
+    <div class="sign-block"><div class="sign-line">اعتماد الإدارة</div></div>
+  </div>
+</div></body></html>`;
   let f=document.getElementById('rxp-tk-print-frame');
   if(!f){f=document.createElement('iframe');f.id='rxp-tk-print-frame';f.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;z-index:-9999';document.body.appendChild(f);}
   f.srcdoc=html;f.onload=()=>setTimeout(()=>f.contentWindow.print(),500);
@@ -10176,37 +10456,142 @@ window.tkPrintEvaluations=function(){
     evals=evals.filter(e=>empTaskIds.has(e.taskId));
   }
   evals.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-  const adminName=db.settings?.adminDisplayName||'المسؤول';
   const now=new Date();
-  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'short',year:'numeric'});
-  const avgAll=evals.length?(evals.reduce((s,e)=>s+((e.quality+e.time+e.initiative)/3),0)/evals.length).toFixed(1):'—';
-  const starStr=n=>'★'.repeat(n)+'☆'.repeat(5-n);
-  const rows=evals.map((ev,i)=>{
+  const exportDate=now.toLocaleDateString('ar-EG',{day:'2-digit',month:'long',year:'numeric'});
+  const weekday=now.toLocaleDateString('ar-EG',{weekday:'long'});
+  const refNo='EVL-'+now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  const starHtml=n=>{
+    let h='';
+    for(let i=1;i<=5;i++) h+='<span class="star'+(i<=n?' on':'')+'">★</span>';
+    return h;
+  };
+
+  // Group by employee (Arabic name forced regardless of app UI language)
+  const groups=new Map();
+  evals.forEach(ev=>{
     const task=db.tasks.find(t=>t.id===ev.taskId);
-    const avg=((ev.quality+ev.time+ev.initiative)/3).toFixed(1);
-    const dateStr=ev.date?new Date(ev.date+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'short'}):'—';
-    return `<tr>
-      <td style="text-align:center;color:#94a3b8;font-size:10px">${i+1}</td>
-      <td style="font-weight:700">${task?tkEmpName(task.empId):'—'}</td>
-      <td style="text-align:right;direction:rtl">${task?task.title:'مهمة محذوفة'}</td>
-      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.quality)}</td>
-      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.time)}</td>
-      <td style="text-align:center;color:#d97706;white-space:nowrap">${starStr(ev.initiative)}</td>
-      <td style="text-align:center;font-weight:900;color:#0f172a">${avg}</td>
-      <td style="white-space:nowrap;color:#475569">${dateStr}</td>
-      <td style="text-align:right;direction:rtl;color:#334155;font-size:10.5px">${ev.comment||'—'}</td>
-    </tr>`;
+    const key=task?task.empId:'__unknown__';
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(ev);
+  });
+
+  let counter=0;
+  const sections=[...groups.entries()].map(([empId,list])=>{
+    const empAvg=(list.reduce((s,e)=>s+((e.quality+e.time+e.initiative)/3),0)/list.length).toFixed(1);
+    const rows=list.map(ev=>{
+      counter++;
+      const task=db.tasks.find(t=>t.id===ev.taskId);
+      const avg=((ev.quality+ev.time+ev.initiative)/3).toFixed(1);
+      const dateStr=ev.date?new Date(ev.date+'T00:00:00').toLocaleDateString('ar-EG',{day:'2-digit',month:'long'}):'—';
+      return `<tr>
+        <td class="idx">${counter}</td>
+        <td>
+          <div class="ttl-main">${task?task.title:'مهمة محذوفة'}</div>
+          <div class="ttl-sub">${dateStr}</div>
+        </td>
+        <td class="center stars">${starHtml(ev.quality)}</td>
+        <td class="center stars">${starHtml(ev.time)}</td>
+        <td class="center stars">${starHtml(ev.initiative)}</td>
+        <td class="center avg-cell">${avg}</td>
+        <td class="comment">${ev.comment||'—'}</td>
+      </tr>`;
+    }).join('');
+    return `<table class="emp-table">
+      <thead>
+        <tr class="emp-row">
+          <th colspan="7">
+            <div class="emp-line">
+              <span class="emp-name">${empId==='__unknown__'?'موظف محذوف':tkEmpNameAr(empId)}</span>
+              <span class="emp-count">${list.length} ${list.length===1?'تقييم':'تقييمات'} · متوسط ${empAvg} من 5</span>
+            </div>
+          </th>
+        </tr>
+        <tr class="col-row">
+          <th class="idx">م</th>
+          <th>المهمة</th>
+          <th class="center">جودة التنفيذ</th>
+          <th class="center">الالتزام بالوقت</th>
+          <th class="center">المبادرة والتعاون</th>
+          <th class="center">المتوسط</th>
+          <th>ملاحظات المقيّم</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }).join('');
-  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Cairo','Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:28px}@media print{@page{size:A4 landscape;margin:10mm}body{padding:0;background:#f1f5f9}}.header{background:#0f172a;border-radius:12px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}.header h1{font-size:18px;color:#fff;margin:0}.header .sub{font-size:10.5px;color:#94a3b8;margin-top:4px}.header .date{font-size:11px;color:#64748b;background:#1e293b;padding:6px 12px;border-radius:8px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.card{padding:14px 16px;border-radius:10px;background:#fff;border:1px solid #e2e8f0;border-right:4px solid;box-shadow:0 1px 4px rgba(0,0,0,.06)}.card-label{font-size:9px;color:#64748b;margin-bottom:6px;font-weight:700;letter-spacing:.4px}.card-val{font-size:26px;font-weight:900}.table-wrap{background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06)}table{width:100%;border-collapse:collapse;font-size:11px}thead tr{background:#0f172a}th{padding:11px 13px;color:#94a3b8;font-weight:700;text-align:right;font-size:10px;letter-spacing:.3px}tbody tr{border-bottom:1px solid #f1f5f9}tbody tr:nth-child(even){background:#f8fafc}td{padding:10px 13px;color:#0f172a;vertical-align:top;font-weight:500}.footer{margin-top:16px;display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 4px}</style></head><body>
-  <div class="header"><div><h1>⭐ تقرير تقييم المهام</h1><div class="sub">${_tkEmpFilter?'الموظف: '+tkEmpName(_tkEmpFilter)+' · ':''}أعده: ${adminName}</div></div><div class="date">${exportDate}</div></div>
-  <div class="cards">
-    <div class="card" style="border-right-color:#d97706"><div class="card-label">إجمالي التقييمات</div><div class="card-val" style="color:#b45309">${evals.length}</div></div>
-    <div class="card" style="border-right-color:#16a34a"><div class="card-label">متوسط التقييم العام</div><div class="card-val" style="color:#15803d">${avgAll}${avgAll!=='—'?'/5':''}</div></div>
-    <div class="card" style="border-right-color:#0ea5e9"><div class="card-label">تاريخ التقرير</div><div class="card-val" style="font-size:16px;color:#0369a1">${exportDate}</div></div>
+
+  const avgAll=evals.length?(evals.reduce((s,e)=>s+((e.quality+e.time+e.initiative)/3),0)/evals.length).toFixed(1):'—';
+
+  const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Cairo','Traditional Arabic','Segoe UI',serif;background:#f7f5f0;color:#1c1c1c;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:30px}
+@media print{@page{size:A4 landscape;margin:14mm 12mm}body{padding:0;background:#fff}.emp-table{page-break-inside:avoid}}
+.sheet{max-width:1050px;margin:0 auto;background:#fff}
+.letterhead{border-bottom:2px double #1c1c1c;padding-bottom:9px;margin-bottom:14px}
+.lh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.org{display:flex;align-items:center;gap:8px}
+.org-mark{width:28px;height:28px;border:1.5px solid #1c1c1c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#1c1c1c;flex-shrink:0}
+.org-name{font-size:12.5px;font-weight:800;color:#1c1c1c;letter-spacing:.3px}
+.org-sub{font-size:8.5px;color:#6b6b6b;margin-top:1px}
+.ref-box{text-align:left;font-size:8.5px;color:#6b6b6b;line-height:1.7}
+.ref-box b{color:#1c1c1c;font-weight:700}
+.doc-title{text-align:center;margin-top:10px}
+.doc-title h1{font-size:15px;font-weight:900;color:#1c1c1c;display:inline-block;padding:0 6px}
+.doc-sub{text-align:center;font-size:9.5px;color:#6b6b6b;margin-top:3px}
+.meta-strip{display:flex;justify-content:center;gap:26px;margin-top:8px;padding-top:7px;border-top:1px solid #d8d4c9;flex-wrap:wrap}
+.meta-item{text-align:center}
+.meta-item .k{font-size:8px;color:#8a8a8a;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.meta-item .v{font-size:10.5px;font-weight:700;color:#1c1c1c}
+.emp-table{width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #d8d4c9}
+.emp-row th{background:#1c1c1c;padding:9px 14px}
+.emp-line{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+.emp-name{font-size:12.5px;font-weight:800;color:#fff}
+.emp-count{font-size:9.5px;color:#c9c4b5;font-weight:600}
+.col-row th{background:#efece3;color:#5a5647;font-weight:700;font-size:9px;padding:7px 12px;border-bottom:1px solid #d8d4c9;text-align:right}
+.col-row th.idx,.col-row th.center{text-align:center}
+.idx{width:28px;text-align:center}
+.center{text-align:center}
+tbody tr{border-bottom:1px solid #ece9df}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:8px 12px;font-size:10.5px;vertical-align:top;color:#1c1c1c}
+.ttl-main{font-weight:700}
+.ttl-sub{font-size:9px;color:#8a8a8a;margin-top:2px}
+.stars{white-space:nowrap;letter-spacing:1px}
+.star{color:#d8d4c9;font-size:12px}
+.star.on{color:#b8860b}
+.avg-cell{font-weight:900;font-size:12px;color:#1c1c1c}
+.comment{color:#4a4a4a;font-size:10px;max-width:200px;line-height:1.5}
+.sign-area{display:flex;justify-content:space-between;margin-top:34px;padding-top:16px}
+.sign-block{width:44%;text-align:center}
+.sign-line{border-top:1px solid #1c1c1c;padding-top:6px;margin-top:36px;font-size:10px;color:#5a5647;font-weight:700}
+.empty{text-align:center;padding:60px;color:#9a968a;font-size:12px;border:1px dashed #d8d4c9}
+</style></head><body><div class="sheet">
+  <div class="letterhead">
+    <div class="lh-top">
+      <div class="org">
+        <div class="org-mark">★</div>
+        <div><div class="org-name">إدارة تقييم الأداء</div><div class="org-sub">تقرير تقييم مهام — مستقل عن متابعة الإنجاز</div></div>
+      </div>
+      <div class="ref-box">
+        <div>رقم المرجع: <b>${refNo}</b></div>
+        <div>التاريخ: <b>${weekday}، ${exportDate}</b></div>
+      </div>
+    </div>
+    <div class="doc-title"><h1>تقرير تقييم المهام</h1></div>
+    <div class="doc-sub">${_tkEmpFilter?'خاص بالموظف: '+tkEmpNameAr(_tkEmpFilter):'تقرير شامل لجميع الموظفين المقيَّمين'}</div>
+    <div class="meta-strip">
+      <div class="meta-item"><div class="k">عدد التقييمات</div><div class="v">${evals.length}</div></div>
+      <div class="meta-item"><div class="k">المتوسط العام</div><div class="v">${avgAll}${avgAll!=='—'?' / 5':''}</div></div>
+    </div>
   </div>
-  <div class="table-wrap"><table><thead><tr><th style="text-align:center;width:30px">#</th><th>الموظف</th><th>المهمة</th><th style="text-align:center">الجودة</th><th style="text-align:center">الالتزام بالوقت</th><th style="text-align:center">المبادرة</th><th style="text-align:center">المتوسط</th><th>التاريخ</th><th>التعليق</th></tr></thead><tbody>${rows||'<tr><td colspan="9" style="text-align:center;padding:30px;color:#94a3b8">لا توجد تقييمات</td></tr>'}</tbody></table></div>
-  <div class="footer"><span>تم إنشاؤه بواسطة RxPerform Pro — نظام تقييم مستقل عن المهام</span><span>${exportDate}</span></div>
-  </body></html>`;
+
+  ${sections||'<div class="empty">لا توجد تقييمات مدرجة في هذا التقرير</div>'}
+
+  <div class="sign-area">
+    <div class="sign-block"><div class="sign-line">توقيع المقيّم</div></div>
+    <div class="sign-block"><div class="sign-line">اعتماد الإدارة</div></div>
+  </div>
+</div></body></html>`;
   let f=document.getElementById('rxp-tkeval-print-frame');
   if(!f){f=document.createElement('iframe');f.id='rxp-tkeval-print-frame';f.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;border:none;opacity:0;pointer-events:none;z-index:-9999';document.body.appendChild(f);}
   f.srcdoc=html;f.onload=()=>setTimeout(()=>f.contentWindow.print(),500);
@@ -10989,12 +11374,14 @@ ensureTkDb();
 
 <!-- Add/Edit Task Modal -->
 <div class="modal-overlay" id="tkTaskModal" style="z-index:10001" onclick="if(event.target===this)closeModal('tkTaskModal')">
-  <div class="modal-box" style="max-width:600px;max-height:92vh;overflow-y:auto">
+  <div class="modal-box" style="max-width:620px;max-height:92vh;overflow-y:auto">
     <div class="modal-title" id="tkTaskModalTitle">➕ إضافة مهمة</div>
     <input type="hidden" id="tkEditId" value="">
-    <div class="form-group">
-      <label class="form-label">الموظف *</label>
-      <select class="form-select" id="tkFEmployee"></select>
+    <input type="hidden" id="tkEditGroupId" value="">
+    <div class="form-group" id="tkFEmployeeWrap">
+      <label class="form-label">الموظف / الموظفين *</label>
+      <div id="tkFEmployeeList" style="display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;padding:8px;border:1px solid var(--border2);border-radius:var(--r);background:var(--glass)"></div>
+      <div style="font-size:10px;color:var(--text2);margin-top:5px">اختر أكتر من موظف لإنشاء نفس المهمة كسطر مستقل لكل واحد فيهم</div>
     </div>
     <div class="form-group">
       <label class="form-label">عنوان المهمة *</label>
@@ -11014,23 +11401,13 @@ ensureTkDb();
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">تاريخ الاستحقاق</label>
-        <input class="form-input" type="date" id="tkFDue">
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="form-group">
-        <label class="form-label">الحالة</label>
-        <select class="form-select" id="tkFStatus" onchange="tkAutoProgress()">
-          <option value="not_started">⚪ لم تبدأ</option>
-          <option value="in_progress">🔵 قيد التنفيذ</option>
-          <option value="completed">🟢 مكتملة</option>
-          <option value="delayed">🔴 متأخرة</option>
+        <label class="form-label">تكرار المهمة *</label>
+        <select class="form-select" id="tkFRecurrence">
+          <option value="once">مرة واحدة</option>
+          <option value="daily">🔁 يومي</option>
+          <option value="weekly">🔁 أسبوعي</option>
+          <option value="monthly">🔁 شهري</option>
         </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">نسبة الإنجاز (%)</label>
-        <input class="form-input" type="number" id="tkFProgress" min="0" max="100" value="0">
       </div>
     </div>
     <div class="form-group">
@@ -11054,18 +11431,58 @@ ensureTkDb();
 
 <!-- View Task Modal -->
 <div class="modal-overlay" id="tkViewModal" style="z-index:10002" onclick="if(event.target===this)closeModal('tkViewModal')">
-  <div class="modal-box" style="max-width:640px;max-height:92vh;overflow-y:auto;padding:0">
+  <div class="modal-box" style="max-width:660px;max-height:92vh;overflow-y:auto;padding:0">
     <div style="padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div style="font-size:15px;font-weight:800">📄 تفاصيل المهمة</div>
       <button onclick="closeModal('tkViewModal')" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer">✕</button>
     </div>
     <div id="tkViewContent" style="padding:18px 22px;display:flex;flex-direction:column;gap:12px"></div>
-    <div style="padding:14px 22px 20px;display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border)">
+    <div style="padding:14px 22px 20px;display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--border);flex-wrap:wrap">
       <button onclick="tkDeleteFromView()" style="padding:8px 16px;border-radius:8px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);color:var(--rose);font-size:12px;font-weight:700;cursor:pointer">🗑 حذف</button>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="tkOpenTransferModal()" style="padding:8px 16px;border-radius:8px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.3);color:var(--purple2);font-size:12px;font-weight:700;cursor:pointer">🔄 نقل لبديل</button>
         <button onclick="tkEditFromView()" style="padding:8px 16px;border-radius:8px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);color:var(--cyan);font-size:12px;font-weight:700;cursor:pointer">✏️ تعديل</button>
         <button onclick="closeModal('tkViewModal')" class="btn btn-ghost" style="font-size:12px;padding:8px 16px">إغلاق</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transfer to Backup Modal -->
+<div class="modal-overlay" id="tkTransferModal" style="z-index:10003" onclick="if(event.target===this)closeModal('tkTransferModal')">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">🔄 نقل المهمة لبديل</div>
+    <input type="hidden" id="tkTransferTaskId" value="">
+    <div class="tk-detail-box" style="margin-bottom:14px">
+      <div class="tk-detail-label">الموظف الحالي</div>
+      <div class="tk-detail-val" id="tkTransferCurrentEmp">—</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">انقل المهمة إلى *</label>
+      <select class="form-select" id="tkTransferToSel"></select>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:6px">
+      المهمة هتتحول بالكامل للموظف الجديد وتختفي من عند الموظف الحالي، مع الاحتفاظ بنفس العنوان والتاريخ وسجل الدورات السابقة.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tkTransferModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="tkConfirmTransfer()" style="background:linear-gradient(135deg,var(--purple),var(--purple2))">🔄 تأكيد النقل</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print Task Selection Modal -->
+<div class="modal-overlay" id="tkPrintSelectModal" style="z-index:10003" onclick="if(event.target===this)closeModal('tkPrintSelectModal')">
+  <div class="modal-box" style="max-width:520px;max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-title">🖨 اختر المهام المطلوب طباعتها</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button type="button" class="tk-btn tk-btn-ghost" style="font-size:11px;padding:6px 12px" onclick="tkPrintSelectAll(true)">تحديد الكل</button>
+      <button type="button" class="tk-btn tk-btn-ghost" style="font-size:11px;padding:6px 12px" onclick="tkPrintSelectAll(false)">إلغاء تحديد الكل</button>
+    </div>
+    <div id="tkPrintSelectList" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1;padding:2px"></div>
+    <div class="modal-actions" style="margin-top:12px;flex-shrink:0">
+      <button class="btn btn-ghost" onclick="closeModal('tkPrintSelectModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="tkConfirmPrintSelection()" style="background:linear-gradient(135deg,var(--emerald),#059669)">🖨 طباعة المحدد</button>
     </div>
   </div>
 </div>
