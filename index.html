@@ -432,6 +432,8 @@ body[dir="rtl"] #notifPanel{right:auto;left:18px}
 .tk-progress-track{height:6px;border-radius:99px;background:var(--border);overflow:hidden;width:100%;min-width:60px}
 .tk-progress-fill{height:100%;border-radius:99px;transition:width 0.4s}
 .tk-table-wrap{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);overflow-x:auto}
+.tk-emp-section{background:var(--glass);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.tk-emp-section-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.03);border-bottom:1px solid var(--border)}
 .tk-table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
 .tk-table thead tr{background:rgba(255,255,255,0.03)}
 .tk-table th{padding:11px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.4px;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -9878,19 +9880,46 @@ window.renderTasksTab=function(){
   const statusOpts=`<option value="">كل المهام</option><option value="completed"${_tkStatusFilter==='completed'?' selected':''}>✅ تمت</option><option value="not_started"${_tkStatusFilter==='not_started'?' selected':''}>⬜ لم تتم</option>`;
 
   const list=tkFilteredTasks();
-  const rows=list.length?list.map(task=>{
-    const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
-    const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
-    const done=task.status==='completed';
-    const lastTransfer=(task.transferLog||[])[0];
-    return `<tr>
-      <td><div style="display:flex;align-items:center;gap:8px"><div style="width:26px;height:26px;border-radius:7px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div><div><div style="font-weight:600">${tkEmpName(task.empId)}</div>${lastTransfer?`<div style="font-size:9px;color:var(--purple2)">بدلاً عن ${lastTransfer.fromName}</div>`:''}</div></div></td>
-      <td style="max-width:260px"><div style="font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}${task.recurrence&&task.recurrence!=='once'?` <span style="font-size:9px;color:var(--cyan);font-weight:700">${rc.icon} ${rc.label}</span>`:''}</div>${task.desc?`<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${task.desc}</div>`:''}</td>
-      <td><span class="tk-priority-pill" style="background:${pr.bg};color:${pr.color}">${pr.icon} ${pr.label}</span></td>
-      <td style="text-align:center"><input type="checkbox" onchange="tkToggleDone('${task.id}',this.checked)" ${done?'checked':''} style="width:19px;height:19px;accent-color:var(--emerald);cursor:pointer" title="تمت المهمة؟"></td>
-      <td><div style="display:flex;gap:5px"><div class="tk-icon-action" title="عرض" onclick="tkViewTask('${task.id}')">👁</div><div class="tk-icon-action" title="تعديل" onclick="tkEditTask('${task.id}')">✏️</div><div class="tk-icon-action" title="حذف" onclick="tkDeleteTask('${task.id}')" style="color:var(--rose)">🗑</div></div></td>
-    </tr>`;
-  }).join(''):'';
+
+  // Group tasks by employee — each employee gets a fixed, persistent section of the page
+  const groups=new Map();
+  list.forEach(task=>{
+    const key=task.empId;
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(task);
+  });
+
+  const sections=[...groups.entries()].map(([empId,tasks])=>{
+    const empDone=tasks.filter(t=>t.status==='completed').length;
+    const rows=tasks.map(task=>{
+      const pr=PRIORITY_MAP[task.priority]||PRIORITY_MAP.medium;
+      const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+      const done=task.status==='completed';
+      return `<tr>
+        <td style="max-width:280px"><div style="font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}${task.recurrence&&task.recurrence!=='once'?` <span style="font-size:9px;color:var(--cyan);font-weight:700">${rc.icon} ${rc.label}</span>`:''}</div>${task.desc?`<div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px">${task.desc}</div>`:''}</td>
+        <td><span class="tk-priority-pill" style="background:${pr.bg};color:${pr.color}">${pr.icon} ${pr.label}</span></td>
+        <td style="text-align:center"><input type="checkbox" onchange="tkToggleDone('${task.id}',this.checked)" ${done?'checked':''} style="width:19px;height:19px;accent-color:var(--emerald);cursor:pointer" title="تمت المهمة؟"></td>
+        <td><div style="display:flex;gap:5px"><div class="tk-icon-action" title="عرض" onclick="tkViewTask('${task.id}')">👁</div><div class="tk-icon-action" title="تعديل" onclick="tkEditTask('${task.id}')">✏️</div><div class="tk-icon-action" title="حذف" onclick="tkDeleteTask('${task.id}')" style="color:var(--rose)">🗑</div></div></td>
+      </tr>`;
+    }).join('');
+    const lastTransfer=(tasks[0].transferLog||[])[0];
+    return `<div class="tk-emp-section">
+      <div class="tk-emp-section-head">
+        <div style="width:34px;height:34px;border-radius:9px;background:${tkEmpColor(empId)}22;color:${tkEmpColor(empId)};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">${ini(tkEmpName(empId))}</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:14px;font-weight:800;color:var(--white);display:flex;align-items:center;gap:8px;flex-wrap:wrap">${tkEmpName(empId)}${lastTransfer?`<span style="font-size:9.5px;color:var(--purple2);font-weight:700">بدلاً عن ${lastTransfer.fromName}</span>`:''}</div>
+          <div style="font-size:10.5px;color:var(--text2)">${tasks.length} ${tasks.length===1?'مهمة':'مهام'} · ${empDone} تمت</div>
+        </div>
+        <button class="tk-icon-action" title="طباعة مهام ${tkEmpName(empId)}" onclick="tkPrintEmployeeTasks('${empId}')" style="width:32px;height:32px;font-size:14px;flex-shrink:0">🖨</button>
+      </div>
+      <div class="tk-table-wrap" style="border-radius:0 0 var(--r2) var(--r2);border-top:none">
+        <table class="tk-table">
+          <thead><tr><th>المهمة</th><th>الأولوية</th><th style="text-align:center;width:70px">تمت؟</th><th style="width:110px">إجراءات</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
 
   container.innerHTML=`
     <div class="tk-dash-grid" style="grid-template-columns:repeat(3,1fr)">
@@ -9908,13 +9937,18 @@ window.renderTasksTab=function(){
       <button class="tk-btn tk-btn-purple" onclick="tkPrintEvaluations()">🖨 طباعة التقييمات</button>
     </div>
 
-    <div class="tk-table-wrap">
-      <table class="tk-table">
-        <thead><tr><th>الموظف</th><th>المهمة</th><th>الأولوية</th><th style="text-align:center;width:70px">تمت؟</th><th style="width:110px">إجراءات</th></tr></thead>
-        <tbody>${rows||`<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text2)">لا توجد مهام مطابقة</td></tr>`}</tbody>
-      </table>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      ${sections||`<div style="text-align:center;padding:36px;color:var(--text2);background:var(--glass);border:1px solid var(--border);border-radius:var(--r2)">لا توجد مهام مطابقة</div>`}
     </div>
   `;
+};
+
+/* Print a single employee's fixed task list directly, no selection screen needed */
+window.tkPrintEmployeeTasks=function(empId){
+  ensureTkDb();
+  const ids=db.tasks.filter(t=>t.empId===empId).map(t=>t.id);
+  if(!ids.length){toast('لا توجد مهام لهذا الموظف','#ffb340');return;}
+  tkGenerateTasksPrint(ids);
 };
 
 window.tkToggleDone=function(id,isDone){
@@ -10287,25 +10321,82 @@ window.tkDeleteEval=function(id){
 
 /* ══════════════ PDF / PRINT — TASKS REPORT ══════════════ */
 /* ── Step 1: open the task-selection screen before printing ── */
+/* Temporary, print-only name overrides chosen in the selection screen — never persisted to db.tasks */
+let _tkPrintNameOverrides={};
+
 window.tkPrintTasks=function(){
   ensureTkDb();
+  _tkPrintNameOverrides={};
   const list=tkFilteredTasks();
   const source=(list.length?list:db.tasks);
   if(!source.length){toast('لا توجد مهام لطباعتها','#ffb340');return;}
-  const rows=source.map(task=>{
-    const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
-    const lastTransfer=(task.transferLog||[])[0];
-    return `<label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;background:var(--glass);border:1px solid var(--border);cursor:pointer">
-      <input type="checkbox" class="tk-print-select" value="${task.id}" checked style="width:17px;height:17px;accent-color:var(--emerald);flex-shrink:0">
-      <div style="width:24px;height:24px;border-radius:6px;background:${tkEmpColor(task.empId)}22;color:${tkEmpColor(task.empId)};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">${ini(tkEmpName(task.empId))}</div>
-      <div style="min-width:0;flex:1">
-        <div style="font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}</div>
-        <div style="font-size:10px;color:var(--text2)">${tkEmpName(task.empId)}${lastTransfer?' (بدلاً عن '+lastTransfer.fromName+')':''} · ${rc.label}</div>
+  const groups=new Map();
+  source.forEach(task=>{
+    const key=task.empId;
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(task);
+  });
+  const sections=[...groups.entries()].map(([empId,tasks])=>{
+    const rows=tasks.map(task=>{
+      const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
+      return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;background:var(--glass);border:1px solid var(--border);cursor:pointer">
+        <input type="checkbox" class="tk-print-select" value="${task.id}" checked style="width:17px;height:17px;accent-color:var(--emerald);flex-shrink:0">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:12px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${task.title||'—'}</div>
+          <div style="font-size:10px;color:var(--text2)">${rc.label}</div>
+        </div>
+      </label>`;
+    }).join('');
+    return `<div style="display:flex;flex-direction:column;gap:5px" data-emp-group="${empId}">
+      <div style="display:flex;align-items:center;gap:8px;padding:2px 2px 2px 0">
+        <div style="width:20px;height:20px;border-radius:6px;background:${tkEmpColor(empId)}22;color:${tkEmpColor(empId)};display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;flex-shrink:0">${ini(tkEmpName(empId))}</div>
+        <span style="font-size:12px;font-weight:800;color:var(--white)">${tkEmpName(empId)}</span>
+        <span class="tk-override-label" data-for="${empId}" style="font-size:10px;color:var(--purple2);font-weight:700"></span>
+        <button type="button" class="tk-btn tk-btn-ghost" style="margin-inline-start:auto;font-size:10px;padding:4px 10px" onclick="tkOpenPrintNameOverride('${empId}')">✎ طبع باسم بديل</button>
       </div>
-    </label>`;
-  }).join('');
-  document.getElementById('tkPrintSelectList').innerHTML=rows;
+      ${rows}
+    </div>`;
+  }).join('<div style="height:2px"></div>');
+  document.getElementById('tkPrintSelectList').innerHTML=sections;
   openModal('tkPrintSelectModal');
+};
+
+/* ── Temporary print-only name override picker (does not touch stored task data) ── */
+window.tkOpenPrintNameOverride=function(empId){
+  document.getElementById('tkOverrideForEmpId').value=empId;
+  document.getElementById('tkOverrideOriginalName').textContent=tkEmpName(empId);
+  const current=_tkPrintNameOverrides[empId]||'';
+  document.getElementById('tkOverrideSel').innerHTML=`<option value="">— بدون بديل (استخدم الاسم الأصلي) —</option>`+
+    db.colleagues.filter(c=>c.id!==empId).map(c=>`<option value="${c.id}"${current===colName(c)?' selected':''}>${colName(c)}</option>`).join('')+
+    `<option value="__custom__"${current&&!db.colleagues.some(c=>colName(c)===current)?' selected':''}>✎ آخر / اسم مخصص</option>`;
+  const isCustom=current&&!db.colleagues.some(c=>colName(c)===current);
+  document.getElementById('tkOverrideCustomInput').style.display=isCustom?'block':'none';
+  document.getElementById('tkOverrideCustomInput').value=isCustom?current:'';
+  openModal('tkOverrideModal');
+};
+
+window.tkOverrideSelChange=function(sel){
+  document.getElementById('tkOverrideCustomInput').style.display=sel.value==='__custom__'?'block':'none';
+};
+
+window.tkConfirmPrintNameOverride=function(){
+  const empId=document.getElementById('tkOverrideForEmpId').value;
+  const sel=document.getElementById('tkOverrideSel');
+  let name='';
+  if(sel.value==='__custom__'){
+    name=document.getElementById('tkOverrideCustomInput').value.trim();
+    if(!name){toast('يرجى كتابة الاسم البديل','#ff4d6d');return;}
+  } else if(sel.value){
+    const c=db.colleagues.find(x=>x.id===sel.value);
+    name=c?colName(c):'';
+  }
+  if(name) _tkPrintNameOverrides[empId]=name;
+  else delete _tkPrintNameOverrides[empId];
+
+  const label=document.querySelector(`.tk-override-label[data-for="${empId}"]`);
+  if(label) label.textContent=name?`← يُطبع باسم: ${name}`:'';
+  closeModal('tkOverrideModal');
+  toast(name?`سيُطبع باسم ${name} لهذه الطباعة فقط`:'تم إلغاء الاسم البديل','#a78bfa');
 };
 
 window.tkPrintSelectAll=function(state){
@@ -10315,12 +10406,14 @@ window.tkPrintSelectAll=function(state){
 window.tkConfirmPrintSelection=function(){
   const ids=[...document.querySelectorAll('#tkPrintSelectList .tk-print-select:checked')].map(el=>el.value);
   if(!ids.length){toast('يرجى اختيار مهمة واحدة على الأقل للطباعة','#ff4d6d');return;}
+  const overrides={..._tkPrintNameOverrides};
   closeModal('tkPrintSelectModal');
-  tkGenerateTasksPrint(ids);
+  tkGenerateTasksPrint(ids,overrides);
 };
 
 /* ── Step 2: generate the actual print report from the chosen task ids ── */
-window.tkGenerateTasksPrint=function(taskIds){
+window.tkGenerateTasksPrint=function(taskIds,nameOverrides){
+  nameOverrides=nameOverrides||{};
   ensureTkDb();
   const source=db.tasks.filter(t=>taskIds.includes(t.id));
   const now=new Date();
@@ -10340,6 +10433,7 @@ window.tkGenerateTasksPrint=function(taskIds){
   let counter=0;
   const sections=[...groups.entries()].map(([empId,tasks])=>{
     const lastTransfer=(tasks[0].transferLog||[])[0];
+    const displayName=nameOverrides[empId]||tkEmpNameAr(empId);
     const rows=tasks.map(task=>{
       counter++;
       const rc=RECUR_MAP[task.recurrence]||RECUR_MAP.once;
@@ -10349,26 +10443,31 @@ window.tkGenerateTasksPrint=function(taskIds){
           <div class="ttl-main">${task.title||'—'}</div>
           ${task.desc?`<div class="ttl-sub">${task.desc}</div>`:''}
         </td>
-        <td class="center">${prLabelMap[task.priority]||'متوسطة'}</td>
-        <td class="center">${task.recurrence&&task.recurrence!=='once'?rc.label:'مرة واحدة'}</td>
+        <td class="center pr-col">${prLabelMap[task.priority]||'متوسطة'}</td>
+        <td class="center rc-col">${task.recurrence&&task.recurrence!=='once'?rc.label:'مرة واحدة'}</td>
+        <td class="center chk-col"><span class="chk-box"></span></td>
       </tr>`;
     }).join('');
     return `<table class="emp-table">
+      <colgroup>
+        <col style="width:26px"><col style="width:56%"><col style="width:12%"><col style="width:14%"><col style="width:12%">
+      </colgroup>
       <thead>
         <tr class="emp-row">
-          <th colspan="4">
+          <th colspan="5">
             <div class="emp-line">
-              <span class="emp-name">${tkEmpNameAr(empId)}</span>
-              ${lastTransfer?`<span class="emp-transfer">(بدلاً عن ${lastTransfer.fromName})</span>`:''}
+              <span class="emp-name">${displayName}</span>
+              ${nameOverrides[empId]?'':(lastTransfer?`<span class="emp-transfer">(بدلاً عن ${lastTransfer.fromName})</span>`:'')}
               <span class="emp-count">${tasks.length} ${tasks.length===1?'مهمة':'مهام'}</span>
             </div>
           </th>
         </tr>
         <tr class="col-row">
           <th class="idx">م</th>
-          <th>المهمة</th>
-          <th class="center">الأولوية</th>
-          <th class="center">التكرار</th>
+          <th class="ttl">المهمة</th>
+          <th class="center pr-col">الأولوية</th>
+          <th class="center rc-col">التكرار</th>
+          <th class="center chk-col">تمت؟</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -10378,7 +10477,7 @@ window.tkGenerateTasksPrint=function(taskIds){
   const html=`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Cairo','Traditional Arabic','Segoe UI',serif;background:#f7f5f0;color:#1c1c1c;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:30px}
-@media print{@page{size:A4 portrait;margin:14mm 12mm}body{padding:0;background:#fff}.emp-table{page-break-inside:avoid}}
+@media print{@page{size:A4 portrait;margin:14mm 12mm}body{padding:0;background:#fff}.emp-table{page-break-inside:auto}.emp-table thead{display:table-header-group}.emp-table tr{page-break-inside:avoid;break-inside:avoid}.emp-row,.col-row{page-break-after:avoid;break-after:avoid}}
 .sheet{max-width:820px;margin:0 auto;background:#fff}
 .letterhead{border-bottom:2px double #1c1c1c;padding-bottom:9px;margin-bottom:14px}
 .lh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
@@ -10395,22 +10494,27 @@ body{font-family:'Cairo','Traditional Arabic','Segoe UI',serif;background:#f7f5f
 .meta-item{text-align:center}
 .meta-item .k{font-size:8px;color:#8a8a8a;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
 .meta-item .v{font-size:10.5px;font-weight:700;color:#1c1c1c}
-.emp-table{width:100%;border-collapse:collapse;margin-bottom:16px;border:1px solid #d8d4c9}
-.emp-row th{background:#1c1c1c;padding:9px 14px}
+.emp-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:14px;border:1px solid #d8d4c9}
+.emp-row th{background:#1c1c1c;padding:7px 14px}
 .emp-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .emp-name{font-size:12.5px;font-weight:800;color:#fff}
 .emp-transfer{font-size:9.5px;color:#c9c4b5;font-style:italic}
 .emp-count{margin-inline-start:auto;font-size:9.5px;color:#c9c4b5;font-weight:600}
-.col-row th{background:#efece3;color:#5a5647;font-weight:700;font-size:9px;padding:7px 14px;border-bottom:1px solid #d8d4c9;text-align:right}
+.col-row th{background:#efece3;color:#5a5647;font-weight:700;font-size:9px;padding:5px 14px;border-bottom:1px solid #d8d4c9;text-align:right}
 .col-row th.idx,.col-row th.center{text-align:center}
-.idx{width:32px;text-align:center}
+.idx{width:26px;text-align:center;padding-left:4px!important;padding-right:4px!important}
+.ttl{width:56%}
+.pr-col{width:12%}
+.rc-col{width:14%}
+.chk-col{width:12%}
 .center{text-align:center}
 tbody tr{border-bottom:1px solid #ece9df}
 tbody tr:last-child{border-bottom:none}
-tbody td{padding:9px 14px;font-size:11px;vertical-align:top;color:#1c1c1c}
+tbody td{padding:5px 14px;font-size:11px;vertical-align:top;color:#1c1c1c}
 .ttl-main{font-weight:700}
-.ttl-sub{font-size:9.5px;color:#8a8a8a;margin-top:2px}
-.sign-area{display:flex;justify-content:space-between;margin-top:34px;padding-top:16px}
+.ttl-sub{font-size:9.5px;color:#8a8a8a;margin-top:1px}
+.chk-box{display:inline-block;width:14px;height:14px;border:1.5px solid #1c1c1c;border-radius:3px;vertical-align:middle}
+.sign-area{margin-top:34px;padding-top:16px}
 .sign-block{width:44%;text-align:center}
 .sign-line{border-top:1px solid #1c1c1c;padding-top:6px;margin-top:36px;font-size:10px;color:#5a5647;font-weight:700}
 .empty{text-align:center;padding:60px;color:#9a968a;font-size:12px;border:1px dashed #d8d4c9}
@@ -10438,7 +10542,6 @@ tbody td{padding:9px 14px;font-size:11px;vertical-align:top;color:#1c1c1c}
 
   <div class="sign-area">
     <div class="sign-block"><div class="sign-line">توقيع المسؤول</div></div>
-    <div class="sign-block"><div class="sign-line">اعتماد الإدارة</div></div>
   </div>
 </div></body></html>`;
   let f=document.getElementById('rxp-tk-print-frame');
@@ -11483,6 +11586,30 @@ ensureTkDb();
     <div class="modal-actions" style="margin-top:12px;flex-shrink:0">
       <button class="btn btn-ghost" onclick="closeModal('tkPrintSelectModal')">إلغاء</button>
       <button class="btn btn-primary" onclick="tkConfirmPrintSelection()" style="background:linear-gradient(135deg,var(--emerald),#059669)">🖨 طباعة المحدد</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print-only name override modal: swaps the printed name for one print run, without touching stored task data -->
+<div class="modal-overlay" id="tkOverrideModal" style="z-index:10004" onclick="if(event.target===this)closeModal('tkOverrideModal')">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-title">✎ طباعة باسم بديل</div>
+    <input type="hidden" id="tkOverrideForEmpId" value="">
+    <div class="tk-detail-box" style="margin-bottom:14px">
+      <div class="tk-detail-label">الموظف الأصلي (لن يتغير في النظام)</div>
+      <div class="tk-detail-val" id="tkOverrideOriginalName">—</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">اطبع مهام هذا الموظف باسم *</label>
+      <select class="form-select" id="tkOverrideSel" onchange="tkOverrideSelChange(this)"></select>
+      <input type="text" id="tkOverrideCustomInput" placeholder="اكتب الاسم البديل هنا..." class="form-input" style="margin-top:8px;display:none">
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:6px">
+      هذا التغيير خاص بهذه الطباعة فقط ولن يُحفظ — المهام تبقى ثابتة ومسندة للموظف الأصلي في النظام.
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('tkOverrideModal')">إلغاء</button>
+      <button class="btn btn-primary" onclick="tkConfirmPrintNameOverride()" style="background:linear-gradient(135deg,var(--purple),var(--purple2))">✎ تطبيق للطباعة</button>
     </div>
   </div>
 </div>
